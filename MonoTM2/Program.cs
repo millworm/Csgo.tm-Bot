@@ -272,9 +272,9 @@ namespace MonoTM2
                         case "itemout_new_go":
                         case "itemstatus_go":
                             answer = ee.Data;
-                            //answer = answer.Replace(":\"{", ":{");
-                            //answer = answer.Replace("}\"}", "}}");
-                            //answer = answer.Replace(@"\", "");
+                            answer = answer.Replace(":\"{", ":{");
+                            answer = answer.Replace("}\"}", "}}");
+                            answer = answer.Replace(@"\", "");
                             var ans1 = JsonConvert.DeserializeObject<TrOf>(answer);
                             switch (ans1.data.status)
                             {
@@ -306,6 +306,7 @@ namespace MonoTM2
                         case "onlinecheck":
                         case "setonline":
                         case "money":
+                        case "webnotify_betsonly":
                             break;
                         case "newitems_go":
                             answer = ee.Data;
