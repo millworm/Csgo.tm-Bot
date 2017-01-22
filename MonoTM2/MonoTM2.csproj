@@ -54,6 +54,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CBot.cs" />
     <Compile Include="Classes.cs" />
     <Compile Include="Config.cs" />
     <Compile Include="functions.cs" />
