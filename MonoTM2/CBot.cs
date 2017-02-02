@@ -75,12 +75,8 @@ namespace MonoTM2
 
         public void Loader()
         {
-            //таймер обновления цен
-            tmr.Elapsed += new ElapsedEventHandler(PriceCorrectTimer);
-            tmr.Interval = cfg.UpdatePriceTimerTime * 60 * 1000;
 
-            tmr2.Elapsed += new ElapsedEventHandler(PingPongTimer);
-            tmr2.Interval = cfg.PingPongTimerTime * 60 * 1000;
+            
 
             //Console.WriteLine("Автоматически получать вещи?");
             //var w = Console.ReadLine();
@@ -120,6 +116,12 @@ namespace MonoTM2
 
             }
 
+            //таймер обновления цен
+            tmr.Elapsed += new ElapsedEventHandler(PriceCorrectTimer);
+            tmr.Interval = cfg.UpdatePriceTimerTime * 60 * 1000;
+
+            tmr2.Elapsed += new ElapsedEventHandler(PingPongTimer);
+            tmr2.Interval = cfg.PingPongTimerTime * 60 * 1000;
 
             client = new WebSocket(host);
 
@@ -682,6 +684,7 @@ namespace MonoTM2
         public void SetUpdateTimer(string time)
         {
             cfg.UpdatePriceTimerTime = Convert.ToInt16(time);
+            Config.Save(cfg);
         }
 
         public double GetUpdateTimer()

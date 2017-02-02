@@ -107,6 +107,9 @@ namespace MonoTM2
                             bot.SetUpdateTimer(Console.ReadLine());
                             Console.WriteLine("Новое время " + bot.GetUpdateTimer().ToString());
                             break;
+                        case "gtime":
+                            Console.WriteLine("Время " + bot.GetUpdateTimer().ToString());
+                            break;
                     }
                 }
                 catch (Exception tty)
