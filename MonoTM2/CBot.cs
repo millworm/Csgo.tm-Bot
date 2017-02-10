@@ -1,7 +1,6 @@
 ﻿using CSharpTradeOffers.Configuration;
 using CSharpTradeOffers.Trading;
 using CSharpTradeOffers.Web;
-using MonoTM2;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -14,8 +13,9 @@ using WebSocketSharp;
 
 namespace MonoTM2
 {
-    public class CBot
+    public class CBot:IDisposable
     {
+        bool Close = false;
         public bool exhibitMessage = false;
         //переменные для подтверждений трейдов 
         private string _user, _pass;
@@ -31,7 +31,7 @@ namespace MonoTM2
         //конфиг
         Config cfg = new Config();
         //
-        delegate void voidDelegate();
+        //delegate void voidDelegate();
 
 
         functions CLIENT, CLIENT1;
@@ -39,11 +39,11 @@ namespace MonoTM2
         const string host = "wss://wsn.dota2.net/wsn/";
         public List<Itm> Items = new List<Itm>();
         Task Finding;
-        voidDelegate UpdatePriceDelegate = null;
-        voidDelegate QuickOrder = null;
-        voidDelegate AcceptTrade = null;
-        voidDelegate UpdateOrdersDelegate = null;
-        voidDelegate UpdateNotificationsDelegate = null;
+        System.Action UpdatePriceDelegate = null;
+        System.Action QuickOrder = null;
+        System.Action AcceptTrade = null;
+        System.Action UpdateOrdersDelegate = null;
+        System.Action UpdateNotificationsDelegate = null;
 
         AsyncCallback CallbackUpdater = null;
 
@@ -138,9 +138,7 @@ namespace MonoTM2
 
             client.OnError += (ss, ee) =>
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine(string.Format(string.Format("Ошибка: {0}\n{1}", ee.Message, ee.Exception) + Environment.NewLine));
-                Console.ResetColor();
+                WriteMessage(string.Format("Ошибка: {0}\n{1}" + Environment.NewLine, ee.Message, ee.Exception), ConsoleColor.Red);
             };
             var product = new { type = "" };
             var invcache_go = new { data = new { time = "" } };
@@ -157,41 +155,47 @@ namespace MonoTM2
                     switch (type.type)
                     {
                         case "webnotify":
-                            answer = ee.Data.Replace(@"\", "");
-                            answer = answer.Replace(":\"{", ":{").Replace("\"\"", "");
-                            answer = answer.Replace("}\"}", "}}");
-                            answer = answer.Replace("\\\"\",", "\\\",");
 
-#if DEBUG
-                            System.Diagnostics.Debug.WriteLine(answer);
-                            
-#endif
+                            /* answer = ee.Data.Replace("\\\"\",", "\\\",").Replace(@"\", "").Replace(" \"u0", "");
+                             answer = answer.Replace(":\"{", ":{").Replace("\"\"", "");
+                             answer = answer.Replace("}\"}", "}}");
+                             answer = answer.Replace("\\\"\",", "\\\",");*/
+                            answer = ee.Data.Replace("\"\\\\u", "");
+                            answer = answer.Replace("\\\\\\", "\\");
+                            answer = answer.Replace("\\\"", "\"");
+                            answer = answer.Replace(@"\""", "\"");
+                            answer = answer.Replace(":\"\"{", ":{");
+                            answer = answer.Replace("\"\",", "\",");
+                            answer = answer.Replace("}\"\"}", "}}");
+
                             var ansWeb = JsonConvert.DeserializeAnonymousType(answer, webnotify);
-                            if (ansWeb != null && ansWeb.data.way == null)
+                            //if (ansWeb != null && ansWeb.data.way == null)
+                            //{
+                            id = ansWeb.data.classid + "_" + ansWeb.data.instanceid;
+                            var ItemInListWeb = Items.Find(item => item.id == id); //&& item.price >= (t.data.ui_price));
+
+                            if (ItemInListWeb != null)//&& (ItemInListWeb.price >= (ansWeb.data.price)))
                             {
-                                id = ansWeb.data.classid + "_" + ansWeb.data.instanceid;
-                                var ItemInListWeb = Items.Find(item => item.id == id); //&& item.price >= (t.data.ui_price));
-                                
-                                if (ItemInListWeb != null )//&& (ItemInListWeb.price >= (ansWeb.data.price)))
+                                if (CLIENT1.Buy(ItemInListWeb, cfg.key))
                                 {
-                                    if (CLIENT1.Buy(ItemInListWeb, cfg.key))
-                                    {
-                                        Console.ForegroundColor = ConsoleColor.Green;
-                                        new System.Action(() => Console.WriteLine(string.Format("[{3}] {0} куплен за {1} ({2})", ItemInListWeb.name, ansWeb.data.price, ItemInListWeb.price, "сокеты"))).Invoke();
-                                        Console.ResetColor();
-                                    }
-                                    else
-                                    {
-                                        new System.Action(() => Console.WriteLine(string.Format("[сокеты] Не успел купить {0} выставлен за {1} ({2})", ItemInListWeb.name, ansWeb.data.price, ItemInListWeb.price))).BeginInvoke(null, null);
-                                    }
-
-
+                                    WriteMessage(string.Format("[webnotify] {0} куплен за {1} ({2})", ItemInListWeb.name, ansWeb.data.price, ItemInListWeb.price), ConsoleColor.Green);
                                 }
+                                else
+                                {
+                                    WriteMessage(string.Format("[webnotify] Не успел купить {0} выставлен за {1} ({2})", ItemInListWeb.name, ansWeb.data.price, ItemInListWeb.price));
+                                }
+
+
                             }
+                            //}
                             break;
 
                         case "itemout_new_go":
                         case "itemstatus_go":
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine(ee.Data);
+
+#endif
                             answer = ee.Data.Replace("\\\"", "\"");
                             answer = answer.Replace(":\"{", ":{");
                             answer = answer.Replace("}\"}", "}}");
@@ -200,18 +204,14 @@ namespace MonoTM2
                             switch (ans1.data.status)
                             {
                                 case 2:
-                                    Console.ForegroundColor = ConsoleColor.Magenta;
-                                    Console.WriteLine("[{0}] Передать вещи", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00"));
-                                    Console.ResetColor();
+                                    WriteMessage(string.Format("[{0}] Передать вещи", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00")), ConsoleColor.Magenta);
                                     break;
                                 case 4:
                                     if (autoConfirmTrades)
                                     {
                                         AcceptTrade.BeginInvoke(null, null);
                                     }
-                                    Console.ForegroundColor = ConsoleColor.Cyan;
-                                    Console.WriteLine("[{0}] Забрать вещи", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00"));
-                                    Console.ResetColor();
+                                    WriteMessage(string.Format("[{0}] Забрать вещи", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00")), ConsoleColor.Cyan);
                                     break;
 
                             }
@@ -243,23 +243,15 @@ namespace MonoTM2
                             {
                                 if (CLIENT1.Buy(ItemInList, cfg.key))
                                 {
-                                    Console.ForegroundColor = ConsoleColor.Green;
-                                    new System.Action(() => Console.WriteLine(string.Format("[{3}] {0} куплен за {1} ({2})", ItemInList.name, t.data.ui_price, ItemInList.price, "сокеты"))).Invoke();
-                                    Console.ResetColor();
+                                    WriteMessage(string.Format("[сокеты] {0} куплен за {1} ({2})", ItemInList.name, t.data.ui_price, ItemInList.price), ConsoleColor.Green);
                                 }
                                 else
                                 {
-                                    new System.Action(() => Console.WriteLine(string.Format("[сокеты] Не успел купить {0} выставлен за {1} ({2})", ItemInList.name, t.data.ui_price, ItemInList.price))).BeginInvoke(null, null);
+                                    WriteMessage(string.Format("[сокеты] Не успел купить {0} выставлен за {1} ({2})", ItemInList.name, t.data.ui_price, ItemInList.price));
                                 }
 
 
                             }
-                            if (exhibitMessage && ItemInList != null)
-                            {
-                                new System.Action(() => Console.WriteLine(string.Format("{0} выставлен за {1} ({2})", ItemInList.name, t.data.ui_price, ItemInList.price))).BeginInvoke(null, null);
-                                Thread.Sleep(0);
-                            }
-
                             break;
                         case "history_go":
                             /*answer = ee.Data.Replace(@"\", ""); ;
@@ -280,7 +272,7 @@ namespace MonoTM2
 #if DEBUG
                             System.Diagnostics.Debug.WriteLine(ee.Data);
 #endif
-                            Console.WriteLine(string.Format("Сообщение: \n\r{0}", ee.Data));
+                            WriteMessage(string.Format("Сообщение: \n\r{0}", ee.Data));
                             break;
 
                     }
@@ -290,7 +282,11 @@ namespace MonoTM2
                 }
                 catch (Exception e)
                 {
-                    if (type.type != "newitems_go")
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine(e.Message + Environment.NewLine + ee.Data);
+
+#endif
+                    if (type.type != "newitems_go" || type.type != "webnotify")
                         Console.WriteLine("Error " + type.type + " " + e.Message + Environment.NewLine + Environment.NewLine + answer1 + Environment.NewLine + Environment.NewLine + answer + Environment.NewLine + Environment.NewLine);
                 }
 
@@ -298,16 +294,19 @@ namespace MonoTM2
 
             client.OnClose += (ss, ee) =>
             {
-                Console.WriteLine(string.Format("Отключен от {0}", host));
-                string wskey = CLIENT.GetWS(cfg.key);
-                WS t = JsonConvert.DeserializeObject<WS>(wskey);
+                WriteMessage(string.Format("Отключен от {0}", host));
+                if (!Close)
+                {
+                    string wskey = CLIENT.GetWS(cfg.key);
+                    WS t = JsonConvert.DeserializeObject<WS>(wskey);
 
-                client.Connect();
-                if (t.error == null && t.wsAuth != null)
-                    client.Send(t.wsAuth);
-                else
-                    Console.WriteLine(t.error);
-                //client.Send("newitems_go");
+                    client.Connect();
+                    if (t.error == null && t.wsAuth != null)
+                        client.Send(t.wsAuth);
+                    else
+                        Console.WriteLine(t.error);
+                    //  client.Send("newitems_go");
+                }
             };
 
 
@@ -323,22 +322,15 @@ namespace MonoTM2
         // public void find()
         async Task find()
         {
-            while (true)
+            while (!Close)
             {
                 for (int i = 0; i < Items.Count; i++)
                 {
                     {
                         if (CLIENT.Buy(Items[i], cfg.key))
                         {
-
-                            new System.Action(() =>
-                            {
-                                Console.ForegroundColor = ConsoleColor.Green;
-                                Console.WriteLine(string.Format("[{2}] find {0} куплен. Цена на покупку ({1})", Items[i].name, Items[i].price,
-                                    DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00")));
-                                Console.ResetColor();
-                            }).BeginInvoke(null, null);
-
+                            WriteMessage(string.Format("[{2}] find {0} куплен. Цена на покупку ({1})", Items[i].name, Items[i].price,
+                                DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00")), ConsoleColor.Green);
                         }
                         //Thread.Sleep(cfg.Itimer);
                         await Task.Delay(cfg.Itimer);
@@ -359,9 +351,8 @@ namespace MonoTM2
             CorrectOrders();
             CorrectNotifications();
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("Цены скорректированы");
-            Console.ResetColor();
+            WriteMessage("Цены скорректированы", ConsoleColor.Yellow);
+
             //проверка быстрых покупок
             QuickOrder.BeginInvoke(null, null);
             //запуск поиска
@@ -369,9 +360,8 @@ namespace MonoTM2
             {
                 // Find.Start();
                 Finding = find();
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("Поиск включен");
-                Console.ResetColor();
+                WriteMessage("Поиск включен", ConsoleColor.Yellow);
+
             }
             //запуск сокетов
             string wskey = CLIENT.GetWS(cfg.key);
@@ -380,18 +370,16 @@ namespace MonoTM2
             if (t.error == null && t.wsAuth != null)
                 client.Send(t.wsAuth);
             else
-                Console.WriteLine(t.error);
+                WriteMessage(t.error, ConsoleColor.Red);
             Thread.Sleep(0);
 
 
-            //client.Send("newitems_go");
+            // client.Send("newitems_go");
 
             //запуск таймеров
             tmr.Enabled = true;
             tmr2.Enabled = true;
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("Таймеры включены");
-            Console.ResetColor();
+            WriteMessage("Таймеры включены", ConsoleColor.Yellow);
 
         }
 
@@ -466,13 +454,11 @@ namespace MonoTM2
 
 
                 }
-                Console.WriteLine(string.Format("Обновлены цены {0}:{1}", DateTime.Now.Hour.ToString("00"), DateTime.Now.Minute.ToString("00")));
+                WriteMessage(string.Format("Обновлены цены {0}:{1}", DateTime.Now.Hour.ToString("00"), DateTime.Now.Minute.ToString("00")));
             }
             catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("[CorrectPrice] {0}", ex.Message);
-                Console.ResetColor();
+                WriteMessage(string.Format("[CorrectPrice] {0}", ex.Message), ConsoleColor.Red);
             }
 
 
@@ -500,9 +486,7 @@ namespace MonoTM2
                         //покупаем
                         if (CLIENT.QBuy(cfg.key, findItem.ui_id))
                         {
-                            Console.ForegroundColor = ConsoleColor.Green;
-                            Console.WriteLine(string.Format("[{4}] {3} {0} куплен за {1} ({2})", tempItem.name, Convert.ToDouble(findItem.l_paid) / 100, tempItem.price, "Список", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00")));
-                            Console.ResetColor();
+                            WriteMessage(string.Format("[{4}] {3} {0} куплен за {1} ({2})", tempItem.name, Convert.ToDouble(findItem.l_paid) / 100, tempItem.price, "Список", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00")), ConsoleColor.Green);
                         }
                     }
                 }
@@ -527,6 +511,7 @@ namespace MonoTM2
                 BinaryFormatter binaryFormatter = new BinaryFormatter();
                 binaryFormatter.Serialize(fstream, Items);
                 fstream.Close();
+
                 Console.WriteLine("Список сохранен");
             }
         }
@@ -538,9 +523,8 @@ namespace MonoTM2
         /// <param name="e"></param>
         void PriceCorrectTimer(object sender, ElapsedEventArgs e)
         {
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine("[{0}] таймер", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00"));
-            Console.ResetColor();
+            WriteMessage(string.Format("[{0}] таймер", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00")), ConsoleColor.Blue);
+
             //выставитьToolStripMenuItem_Click(sender, e);
             UpdatePriceDelegate.BeginInvoke(CallbackUpdater, null);
             if (autoConfirmTrades)
@@ -820,12 +804,15 @@ namespace MonoTM2
         /// </summary>
         public void Closing()
         {
+            Close = true;
 
-            client.Close();
-            Finding.Dispose();
 
             tmr.Stop();
             tmr2.Stop();
+
+            client.Close();
+            Finding.Wait();
+            Finding.Dispose();
 
             CLIENT.DeleteAllOrders(cfg.key);
 
@@ -866,5 +853,25 @@ namespace MonoTM2
             }
         }
 
+        /// <summary>
+        /// Вывод сообщения в консоль
+        /// </summary>
+        /// <param name="msg">текст</param>
+        /// <param name="color">ConsoleColor</param>
+        void WriteMessage(string msg, ConsoleColor color = ConsoleColor.Gray)
+        {
+            Console.ForegroundColor = color;
+            new System.Action(() => Console.WriteLine(msg)).Invoke();
+            Console.ResetColor();
+        }
+
+
+
+
+        public void Dispose()
+        {
+            tmr.Dispose();
+            tmr2.Dispose();
+        }
     }
 }

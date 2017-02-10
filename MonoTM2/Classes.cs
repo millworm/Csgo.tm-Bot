@@ -152,6 +152,9 @@ namespace MonoTM2
         public string link { get; set; }
         public int count { get; set; }
         public double price { get; set; }
+        /// <summary>
+        /// Format: [classid]_[instanceid]
+        /// </summary>
         public string hash { get; set; }
         public string id { get; set; }
         public bool turn { get; set; }

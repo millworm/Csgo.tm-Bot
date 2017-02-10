@@ -1,17 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.IO;
-using Newtonsoft.Json;
-using System.Runtime.Serialization.Formatters.Binary;
-using WebSocketSharp;
-using System.Timers;
 
-using CSharpTradeOffers.Configuration;
-using CSharpTradeOffers.Trading;
-using CSharpTradeOffers.Web;
-using System.Diagnostics;
-using System.Threading.Tasks;
 
 namespace MonoTM2
 {
@@ -45,18 +33,18 @@ namespace MonoTM2
                             Console.WriteLine(bot.exhibitMessage.ToString());
                             break;
 						//подтвердить трейды
-                        case "trade":
-                        case "t":
-                            if (bot.GetConfirmTradesValue())
-                            {
-                                bot.ConfirmTrade();
-                            }
-                            else
-                            {
-                                bot.TurnOnOrOffAutoConfirmTrades();
-                                bot.ConfirmTrade();
-                            }
-                            break;
+                        //case "trade":
+                        //case "t":
+                        //    if (bot.GetConfirmTradesValue())
+                        //    {
+                        //        bot.ConfirmTrade();
+                        //    }
+                        //    else
+                        //    {
+                        //        bot.TurnOnOrOffAutoConfirmTrades();
+                        //        bot.ConfirmTrade();
+                        //    }
+                        //    break;
 						//добавить предмет
                         case "add":
                         case "a":
@@ -117,6 +105,7 @@ namespace MonoTM2
                     Console.WriteLine(tty.Message);
                 }
             }
+            bot.Closing();
         }
 
     }
