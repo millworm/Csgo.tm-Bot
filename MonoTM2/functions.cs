@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 using System.IO;
 using System.Net;
+using System.Globalization;
 namespace MonoTM2
 {
 
@@ -18,7 +19,7 @@ namespace MonoTM2
             a:
                 string resp = Web(host + "/api/Buy/" + item.id + "/" + Convert.ToInt32(item.price * 100) + "/" + item.hash + "/" + "?key=" + key);
                 aBuy it = JsonConvert.DeserializeObject<aBuy>(resp);
-                if (it.id != "False")
+                if (it.id.ToLower() != "false")
                 {
                     if (it.result == "ok")
                     {
@@ -31,7 +32,7 @@ namespace MonoTM2
                     {
                         return false;
                     }
-                    if (it.result.IndexOf("устарело") == -1 && i++ < 3)
+                    if (it.result.IndexOf("устарело") == -1 && i++ < 5)
                     {
 
                         Console.WriteLine(string.Format("[{0}] {1}", item.name, it.result));
@@ -362,9 +363,9 @@ namespace MonoTM2
                 }
                 else
                 {
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine("ProcessOrder " + inf.error);
-#endif
+//#if DEBUG
+//                    System.Diagnostics.Debug.WriteLine("ProcessOrder " + inf.error);
+//#endif
 
                     return inf.error;
                 }
@@ -411,6 +412,86 @@ namespace MonoTM2
             {
                 return ex.Message;
             }
+        }
+
+        /// <summary>
+        /// Запросить скидку
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns>число типа double</returns>
+        public double GetDiscounts(string key)
+        {
+            try
+            {
+                //https://market.csgo.com/api/GetDiscounts/?key=[your_secret_key]
+                string answer = Web(host + "/api/GetDiscounts/?key="+key);
+
+                var pr = new { success = false, discounts = new { sell_fee = "" } };
+                var inf = JsonConvert.DeserializeAnonymousType(answer, pr);
+                if (inf.success == true)
+                {
+                    return Convert.ToDouble(inf.discounts.sell_fee.Replace("%", ""), System.Globalization.CultureInfo.InvariantCulture);
+                }
+                else
+                {
+                   return 10.01;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return 10.02;
+            }
+        }
+
+        /// <summary>
+        /// Получение дневной прибыли
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns>Дневная прибыль в копейках</returns>
+        public int GetProfit(string key)
+        {
+            try
+            {
+                int spent = 0, earned = 0;
+                var startDay=new DateTime(DateTime.Now.Year,DateTime.Now.Month,DateTime.Now.Day-1,21,0,1);
+                var endDay=new DateTime(DateTime.Now.Year,DateTime.Now.Month,DateTime.Now.Day,23,59,59);
+                //https://market.csgo.com/api/OperationHistory/[start_time]/[end_time]/?key=[your_secret_key]
+                string answer = Web(host + string.Format("/api/OperationHistory/{0}/{1}/?key={2}", (int)startDay.Subtract(new DateTime(1970, 1, 1)).TotalSeconds, (int)endDay.Subtract(new DateTime(1970, 1, 1)).TotalSeconds, key));
+                var typeT=new[] {new { h_event="", recieved="" }};
+                var pr = new { success = false, history = new[] { new { h_event = "", recieved = "", stage =""} } };
+                var inf = JsonConvert.DeserializeAnonymousType(answer, pr);
+                if (inf.success == true && inf.history!=null)
+                {
+                    foreach (var i in inf.history)
+                    {
+                        if (i.h_event == "sell_go")
+                        {
+                            earned += Convert.ToInt32(i.recieved);
+                        }
+                        if (i.h_event == "buy_go" && i.stage!="5")
+                        {
+                            spent += Convert.ToInt32(i.recieved);
+                        }
+                    }
+                    return earned - spent;
+                }
+                else
+                {
+                    return -1;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return -2;
+            }
+        }
+
+        public void GoOffline(string key)
+        {
+           // https://market.csgo.com/api/GoOffline/?key=
+            Web(host + "/api/GoOffline/?key=" + key);
         }
     }
 }

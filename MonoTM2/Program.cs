@@ -32,6 +32,10 @@ namespace MonoTM2
                                 bot.exhibitMessage = true;
                             Console.WriteLine(bot.exhibitMessage.ToString());
                             break;
+                        case "p":
+                        case "profit":
+                            Console.WriteLine(bot.GetProfit());
+                            break;
 						//подтвердить трейды
                         //case "trade":
                         //case "t":
@@ -42,7 +46,6 @@ namespace MonoTM2
                         //    else
                         //    {
                         //        bot.TurnOnOrOffAutoConfirmTrades();
-                        //        bot.ConfirmTrade();
                         //    }
                         //    break;
 						//добавить предмет
@@ -58,6 +61,8 @@ namespace MonoTM2
                             bot.UpdatePrice();
                             //проверка быстрых покупок
                             bot.CheckQuickOrders();
+                            //обновление ордеров и оповщений
+                            bot.UpdateOrdersAndNotifications();
                             break;
 						//вывести прибыль с предмета
                         case "gprice":
@@ -97,6 +102,9 @@ namespace MonoTM2
                             break;
                         case "gtime":
                             Console.WriteLine("Время " + bot.GetUpdateTimer().ToString());
+                            break;
+                        case "status":
+                            Console.WriteLine(bot.Status());
                             break;
                     }
                 }
