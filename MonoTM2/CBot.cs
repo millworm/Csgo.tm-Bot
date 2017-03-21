@@ -1,7 +1,4 @@
 ﻿
-using SteamToolkit.Configuration;
-using SteamToolkit.Trading;
-using SteamToolkit.Web;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -11,30 +8,39 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
 using WebSocketSharp;
-
+using SteamToolkit.Configuration;
+using SteamToolkit.Trading;
+using SteamToolkit.Web;
+using SteamAuth;
+using LoginResult = SteamAuth.LoginResult;
 
 namespace MonoTM2
 {
     public class CBot
     {
         bool Close = false;
-        public bool exhibitMessage = false;
         //переменные для подтверждений трейдов 
         private string _user, _pass;
         private string _apiKey;
         private Account _account;
-        private DefaultConfig _config = new DefaultConfig("configuration.xml");
-        private readonly XmlConfigHandler ConfigHandler = new XmlConfigHandler();
+        private DefaultConfig _config = new DefaultConfig("configuration.json");
+        private readonly JsonConfigHandler ConfigHandler = new JsonConfigHandler();
+
+       
+
         private readonly Web Web = new Web(new SteamWebRequestHandler());
 
+      
+
         EconServiceHandler offerHandler;
-        MarketHandler marketHandler;
+        MarketHandler marketHandler; 
+
         bool autoConfirmTrades = false;
+        bool confirmOffer = false;
         //конфиг
         Config cfg = new Config();
         //
         //delegate void voidDelegate();
-
 
         Thread Find;
         Task Finding;
@@ -44,6 +50,7 @@ namespace MonoTM2
         const string host = "wss://wsn.dota2.net/wsn/";
         public List<Itm> Items = new List<Itm>();
 
+
         System.Action UpdatePriceDelegate = null;
         System.Action QuickOrder = null;
         System.Action AcceptTrade = null;
@@ -52,15 +59,15 @@ namespace MonoTM2
 
         AsyncCallback CallbackUpdater = null;
 
-        System.Timers.Timer tmr = new System.Timers.Timer();
-        System.Timers.Timer tmr2 = new System.Timers.Timer();
+        System.Timers.Timer UpdatePriceTimer = new System.Timers.Timer();
+        System.Timers.Timer pinPongTimer = new System.Timers.Timer();
 
         void Trades()
         {
 
             autoConfirmTrades = true;
 
-            AcceptTrade = AcceptTrades;
+
             try
             {
                 //загрузка данный для подтверждений трейдов
@@ -68,6 +75,11 @@ namespace MonoTM2
                 _apiKey = _config.ApiKey;
                 _user = _config.Username;
                 _pass = _config.Password;
+
+                if (File.Exists("account.maFile"))
+                {
+                    GenerateGuardCode();
+                }
                 _account = Web.RetryDoLogin(TimeSpan.FromSeconds(5), 10, _user, _pass, _config.SteamMachineAuth);
 
                 if (!string.IsNullOrEmpty(_account.SteamMachineAuth))
@@ -75,7 +87,6 @@ namespace MonoTM2
                     _config.SteamMachineAuth = _account.SteamMachineAuth;
                     ConfigHandler.WriteChanges(_config);
                 }
-
                 Console.WriteLine("Login was successful!");
 
                 offerHandler = new EconServiceHandler(_apiKey);
@@ -84,22 +95,27 @@ namespace MonoTM2
 
                 //
             }
-            catch { autoConfirmTrades = false; }
+            catch(Exception ex) {
+                autoConfirmTrades = false;
+                Console.WriteLine(ex.Message);
+            }
 
-            
+
         }
 
         public void Loader()
         {
 
 
+            AcceptTrade = AcceptTrades;
+            Console.WriteLine("Автоматически получать вещи?");
+            var w = Console.ReadLine();
+            if (w.ToLower() == "y")
+            {
+                Trades();
+            }
 
-            //Console.WriteLine("Автоматически получать вещи?");
-            //var w = Console.ReadLine();
-            //if (w.ToLower() == "y")
-            //{
-            //    Trades();
-            //}
+
             CallbackUpdater = new AsyncCallback(CorrectOrdersAndNotifications);
 
             UpdatePriceDelegate = CorrectPrice;
@@ -136,12 +152,15 @@ namespace MonoTM2
 
             }
 
-            //таймер обновления цен
-            tmr.Elapsed += new ElapsedEventHandler(PriceCorrectTimer);
-            tmr.Interval = cfg.UpdatePriceTimerTime * 60 * 1000;
 
-            tmr2.Elapsed += new ElapsedEventHandler(PingPongTimer);
-            tmr2.Interval = cfg.PingPongTimerTime * 60 * 1000;
+
+
+            //таймер обновления цен
+            UpdatePriceTimer.Elapsed += new ElapsedEventHandler(PriceCorrectTimer);
+            UpdatePriceTimer.Interval = cfg.UpdatePriceTimerTime * 60 * 1000;
+
+            pinPongTimer.Elapsed += new ElapsedEventHandler(PingPongTimer);
+            pinPongTimer.Interval = cfg.PingPongTimerTime * 60 * 1000;
 
             client = new WebSocket(host);
 
@@ -194,57 +213,70 @@ namespace MonoTM2
                                 {
                                     WriteMessage(string.Format("[webnotify] {0} куплен за {1} ({2})", ItemInListWeb.name, ansWeb.data.price, ItemInListWeb.price), ConsoleColor.Green);
                                 }
-                                else
-                                {
-                                    WriteMessage(string.Format("[webnotify] Не успел купить {0} выставлен за {1} ({2})", ItemInListWeb.name, ansWeb.data.price, ItemInListWeb.price));
-                                }
+                                //else
+                                //{
+                                //    WriteMessage(string.Format("[webnotify] Не успел купить {0} выставлен за {1} ({2})", ItemInListWeb.name, ansWeb.data.price, ItemInListWeb.price));
+                                //}
 
 
                             }
                             //}
                             break;
-
-                        case "itemout_new_go":
                         case "itemstatus_go":
-#if DEBUG
-                            System.Diagnostics.Debug.WriteLine(ee.Data);
-
-#endif
+                            //{"type":"itemstatus_go","data":"{\"id\":\"173474064\",\"status\":5}"}
+                            //WriteMessage("itemstatus_go " + ee.Data);
                             answer = ee.Data.Replace("\\\"", "\"");
                             answer = answer.Replace(":\"{", ":{");
                             answer = answer.Replace("}\"}", "}}");
-                            //answer = answer.Replace(":\"\"{", ":{");
-                            //answer = answer.Replace("}\"\"}", "}}");
-                            answer = answer.Replace(@"\", "");
-                            var ans1 = JsonConvert.DeserializeObject<TrOf>(answer);
-                            switch (ans1.data.status)
+                            var itemstatus_go = new { data = new { status="" } };
+                            var ansItem = JsonConvert.DeserializeObject<TrOf>(answer);
+                            switch (ansItem.data.status)
                             {
-                                case 2:
-                                    WriteMessage(string.Format("[{0}] Передать вещи", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00")), ConsoleColor.Magenta);
-                                    break;
                                 case 4:
                                     if (autoConfirmTrades)
                                     {
                                         AcceptTrade.BeginInvoke(null, null);
                                     }
                                     WriteMessage(string.Format("[{0}] Забрать вещи", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00")), ConsoleColor.Cyan);
+                                    //AcceptTrade.BeginInvoke(null,null);
                                     break;
 
                             }
+                            break;
+                        case "itemout_new_go":
 
+#if DEBUG
+                            System.Diagnostics.Debug.WriteLine(ee.Data);
+
+#endif
+                            //WriteMessage("itemout_new_go "+ee.Data);
+                            answer = ee.Data.Replace("\\\"", "\"");
+                            answer = answer.Replace(":\"{", ":{");
+                            answer = answer.Replace("}\"}", "}}");
+                            //answer = answer.Replace(":\"\"{", ":{");
+                            //answer = answer.Replace("}\"\"}", "}}");
+                            answer = answer.Replace(@"\", "");
+                            var TemplItemout_new_go = new { data = new { ui_status="" } };
+                            var ans1 = JsonConvert.DeserializeAnonymousType(answer, TemplItemout_new_go);
+                            switch (ans1.data.ui_status)
+                            {
+                                case "3":
+                                    WriteMessage(string.Format("[{0}] Передать вещи", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00")), ConsoleColor.Magenta);
+                                    break;
+                            }
 
                             break;
-
-                        case "additem_go":
-                        case "invcache_go":
-                        case "invcache_gt":
-                        case "invcache_cs":
-                        case "invcache_tf":
-                        case "onlinecheck":
-                        case "setonline":
-                        case "money":
-                        case "webnotify_betsonly":
-                            break;
+                        //case "itemout_new_go":
+                        //case "additem_go":
+                        //case "invcache_go":
+                        //case "invcache_gt":
+                        //case "invcache_cs":
+                        //case "invcache_tf":
+                        //case "onlinecheck":
+                        //case "setonline":
+                        //case "money":
+                        //case "webnotify_betsonly":
+                        //    break;
                         case "newitems_go":
                             answer = ee.Data.Replace("\\\"", "\"");
                             answer = answer.Replace(":\"{", ":{");
@@ -261,35 +293,35 @@ namespace MonoTM2
                                 {
                                     WriteMessage(string.Format("[сокеты] {0} куплен за {1} ({2})", ItemInList.name, t.data.ui_price, ItemInList.price), ConsoleColor.Green);
                                 }
-                                else
-                                {
-                                    WriteMessage(string.Format("[сокеты] Не успел купить {0} выставлен за {1} ({2})", ItemInList.name, t.data.ui_price, ItemInList.price));
-                                }
+                                //else
+                                //{
+                                //    WriteMessage(string.Format("[сокеты] Не успел купить {0} выставлен за {1} ({2})", ItemInList.name, t.data.ui_price, ItemInList.price));
+                                //}
 
 
                             }
                             break;
-                        case "history_go":
-                            /*answer = ee.Data.Replace(@"\", ""); ;
-                            System.Text.RegularExpressions.Regex RID = new System.Text.RegularExpressions.Regex(@"\d+-\d+");
-                            System.Text.RegularExpressions.Regex RPrice = new System.Text.RegularExpressions.Regex(@"\d+\.\d+");
-                            if (RID.IsMatch(answer))
-                            {
-                                var Iid=RID.Match(answer);
-                                var IPrice = RPrice.Match(answer);
-                                var itm=Items.Find(item => item.id == Iid.Value);
-                                if (itm!=null && Convert.ToDouble(IPrice)>itm.price)
-                                {
-                                    CorrectPrice(itm);
-                                }
-                            }*/
-                            break;
-                        default:
-#if DEBUG
-                            System.Diagnostics.Debug.WriteLine(ee.Data);
-#endif
-                            WriteMessage(string.Format("Сообщение: \n\r{0}", ee.Data));
-                            break;
+                        //case "history_go":
+                        //    /*answer = ee.Data.Replace(@"\", ""); ;
+                        //    System.Text.RegularExpressions.Regex RID = new System.Text.RegularExpressions.Regex(@"\d+-\d+");
+                        //    System.Text.RegularExpressions.Regex RPrice = new System.Text.RegularExpressions.Regex(@"\d+\.\d+");
+                        //    if (RID.IsMatch(answer))
+                        //    {
+                        //        var Iid=RID.Match(answer);
+                        //        var IPrice = RPrice.Match(answer);
+                        //        var itm=Items.Find(item => item.id == Iid.Value);
+                        //        if (itm!=null && Convert.ToDouble(IPrice)>itm.price)
+                        //        {
+                        //            CorrectPrice(itm);
+                        //        }
+                        //    }*/
+                        //    break;
+//                        default:
+//#if DEBUG
+//                            System.Diagnostics.Debug.WriteLine(ee.Data);
+//#endif
+//                            WriteMessage(string.Format("Сообщение: \n\r{0}", ee.Data));
+//                            break;
 
                     }
 
@@ -340,24 +372,25 @@ namespace MonoTM2
         {
             while (!Close)
             {
-                for (int i = 0; i < Items.Count; i++)
+                try
                 {
+                    for (int i = 0; i < Items.Count; i++)
                     {
-                        if (CLIENT.Buy(Items[i], cfg.key))
                         {
-                            WriteMessage(string.Format("[{2}] find {0} куплен. Цена на покупку ({1})", Items[i].name, Items[i].price,
-                                DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00")), ConsoleColor.Green);
+                            if (CLIENT.Buy(Items[i], cfg.key))
+                            {
+                                WriteMessage(string.Format("[{2}] find {0} куплен. Цена на покупку ({1})", Items[i].name, Items[i].price,
+                                    DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00")), ConsoleColor.Green);
+                            }
+                            // Thread.Sleep(cfg.Itimer);
+                            await Task.Delay(cfg.Itimer);
                         }
-                        // Thread.Sleep(cfg.Itimer);
-                        await Task.Delay(cfg.Itimer);
                     }
+                    //await Task.Delay(0);
                 }
-                //await Task.Delay(0);
-#if DEBUG
-                 System.Diagnostics.Debug.WriteLine("Find" + DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00"));
-
-#endif
+                catch { }
             }
+           
         }
 
         /// <summary>
@@ -397,8 +430,8 @@ namespace MonoTM2
              client.Send("newitems_go");
 
             //запуск таймеров
-            tmr.Enabled = true;
-            tmr2.Enabled = true;
+            UpdatePriceTimer.Enabled = true;
+            pinPongTimer.Enabled = true;
             WriteMessage("Таймеры включены", ConsoleColor.Yellow);
 
         }
@@ -409,10 +442,20 @@ namespace MonoTM2
         private void UpdateDiscount()
         {
             var disc=CLIENT.GetDiscounts(cfg.key);
-            if (disc != 10.01 && disc != 10.02)
+            if (disc != 10.01 && disc != 10.02 && disc != 10.03)
             {
                 cfg.discount = disc;
                 Config.Save(cfg);
+            }
+            else
+            {
+                if(disc==10.01)
+                {
+                    WriteMessage("Неверный ключ", ConsoleColor.Red);
+                    Thread.Sleep(5000);
+                    Environment.Exit(-1);
+                    return;
+                }
             }
             WriteMessage("Скидка " + cfg.discount + " %");
         }
@@ -422,6 +465,7 @@ namespace MonoTM2
         /// </summary>
         void CorrectPrice()
         {
+
             try
             {
                 double Averange, MinPrice, Discount;
@@ -453,9 +497,7 @@ namespace MonoTM2
                             I.price = Math.Round((Averange * Discount - cfg.price) / 100.0, 2);
                             if (I.price < 0.50)
                             {
-                                I.price = 0.0;
                                 I.turn = false;
-                                I.count = 0;
                             }
                             continue;
                         }
@@ -477,9 +519,7 @@ namespace MonoTM2
                             I.price = Math.Round((MinPrice * Discount - cfg.price) / 100.0, 2);
                             if (I.price < 0.5)
                             {
-                                I.price = 0.0;
                                 I.turn = false;
-                                I.count = 0;
                             }
                             continue;
                         }
@@ -488,6 +528,11 @@ namespace MonoTM2
 
 
                 }
+                //удаляем предметы, которые нет смысла покупать
+               /* var del = Items.RemoveAll(item => item.turn == false);
+                if (del != 0)
+                    WriteMessage(string.Format("Удалено {0} предметов", del));
+                */
                 WriteMessage(string.Format("Обновлены цены {0}:{1}", DateTime.Now.Hour.ToString("00"), DateTime.Now.Minute.ToString("00")));
             }
             catch (Exception ex)
@@ -503,7 +548,6 @@ namespace MonoTM2
         /// </summary>
         void QuickOrderF()
         {
-            int n = 0; // число вещей, найденых из нашего списка на покупку
             //получаем список вещей
             var QuickItemsList = CLIENT.QList(cfg.key);
             //проходимся по нашему списку элементов
@@ -514,13 +558,13 @@ namespace MonoTM2
                 //если нашли, то проверяем цену
                 if (findItem != null)
                 {
-                    n++;
                     if (Convert.ToDouble(findItem.l_paid) < tempItem.price * 100)
                     {
                         //покупаем
                         if (CLIENT.QBuy(cfg.key, findItem.ui_id))
                         {
                             WriteMessage(string.Format("[{4}] {3} {0} куплен за {1} ({2})", tempItem.name, Convert.ToDouble(findItem.l_paid) / 100, tempItem.price, "Список", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00")), ConsoleColor.Green);
+                            AcceptTrade.BeginInvoke(null, null);
                         }
                     }
                 }
@@ -561,6 +605,7 @@ namespace MonoTM2
 
             //выставитьToolStripMenuItem_Click(sender, e);
             UpdatePriceDelegate.BeginInvoke(CallbackUpdater, null);
+
             if (autoConfirmTrades)
             {
                 var trades = CLIENT1.GetTrades(cfg.key);
@@ -584,6 +629,7 @@ namespace MonoTM2
              Console.WriteLine("[{0}] пинг", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00"));
              Console.ResetColor();*/
             //выставитьToolStripMenuItem_Click(sender, e);
+            
             CLIENT.Ping(cfg.key);
             //
             client.Send("PING");
@@ -597,66 +643,76 @@ namespace MonoTM2
         /// </summary>
         void AcceptTrades()
         {
-            try
+            if (!confirmOffer)
             {
-                var tr = CLIENT1.MarketTrades(cfg.key);
-                if (tr != null && tr.trades[0].dir == "out")
+                confirmOffer = true;
+                try
                 {
-                    var ans = offerHandler.AcceptTradeOffer(Convert.ToUInt32(tr.trades[0].trade_id), Convert.ToUInt32(tr.trades[0].bot_id), _account.AuthContainer, "1");
-                    Console.WriteLine(ans);
-                    if (ans != null)
+                    start:
+                    ///проверяем, есть ли трейды, которые нам уже отправили. Если есть, то подтверждаем их
+                    var tr = CLIENT1.MarketTrades(cfg.key);
+                    if (tr != null && tr.trades[0].dir == "out")
                     {
-                        Console.WriteLine("Обмен принят!");
-                        CLIENT1.UpdateInvent(cfg.key);
+                        var ans = offerHandler.AcceptTradeOffer(Convert.ToUInt32(tr.trades[0].trade_id), Convert.ToUInt32(tr.trades[0].bot_id), _account.AuthContainer, "1");
                     }
                     else
-                        Console.WriteLine("Обмен не принят");
-                }
-                else
-                {
-
-                    int b = 0, of = 0;
-                    Console.WriteLine("Определяем бота");
-                bot:
-                    var bid = CLIENT.GetBotID(cfg.key);
-                    if (bid != "0")
                     {
-                        Console.WriteLine("Получаем трейд");
-                    offer:
-                        var offer = CLIENT.GetOffer(bid, cfg.key);
-                        if (offer != null)
-                        {
 
-                            Console.WriteLine("Подтверждаем");
-                            var botsteamid = offer.profile.Substring(offer.profile.IndexOf("s/") + 2).Replace("/", "");
-                            var ans = offerHandler.AcceptTradeOffer(Convert.ToUInt32(offer.trade), Convert.ToUInt32(botsteamid), _account.AuthContainer, "1");
-                            if (ans != null)
+                        int b = 0, of = 0;
+
+                        bot:
+                        var bid = CLIENT.GetBotID(cfg.key);
+                        if (bid != null && bid != "0")
+                        {
+                            Console.WriteLine("Определяем бота");
+                            Console.WriteLine("Получаем трейд");
+                            offer:
+                            Thread.Sleep(2000);
+                            var offer = CLIENT.GetOffer(bid, cfg.key);
+                            if (offer != null)
                             {
-                                Console.WriteLine("Обмен принят!");
-                                CLIENT1.UpdateInvent(cfg.key);
-                                return;
+
+                                Console.WriteLine("Подтверждаем");
+                                var botsteamid = offer.profile.Substring(offer.profile.IndexOf("s/") + 2).Replace("/", "");
+                                var ans = offerHandler.AcceptTradeOffer(Convert.ToUInt32(offer.trade), Convert.ToUInt32(offer.botid), _account.AuthContainer, "1");
+                                if (ans?.TradeId != null)
+                                {
+                                    Console.WriteLine("Обмен принят!");
+                                    //Проверить есть ли еще вещи на прием
+                                    tr = CLIENT1.MarketTrades(cfg.key);
+                                    if (tr != null && tr.success && tr.trades.Count > 0)
+                                        goto start;
+                                }
+                                else
+                                    Console.WriteLine("Обмен не принят");
+
                             }
                             else
-                                Console.WriteLine("Обмен не принят");
-
+                            {
+                                Console.WriteLine("Не дает оффер");
+                                tr = CLIENT1.MarketTrades(cfg.key);
+                                if (of++ < 2 && tr != null && tr.success && tr.trades.Count > 0)
+                                    goto offer;
+                            }
                         }
                         else
                         {
-                            Console.WriteLine("Не дает оффер");
-                            if (of++ < 2) goto offer;
+                            if (b++ < 2) goto bot;
                         }
                     }
-                    else
-                    {
-                        if (b++ < 2) goto bot;
-                    }
+                    //обновляем инвентарь
+                    CLIENT1.UpdateInvent(cfg.key);
                 }
-            }
 
-            catch (Exception exx)
-            {
-                Console.WriteLine(exx.GetBaseException() + "\n\n" + exx.InnerException + "\n\n" + exx.Source + "\n\n" + exx.StackTrace + "\n\n" + exx.TargetSite);
+                catch (Exception exx)
+                {
+                    Console.WriteLine(exx.GetBaseException() + "\n\n" + exx.InnerException + "\n\n" + exx.Source + "\n\n" + exx.StackTrace + "\n\n" + exx.TargetSite);
 
+                }
+                finally
+                {
+                    confirmOffer = false;
+                }
             }
         }
 
@@ -665,7 +721,7 @@ namespace MonoTM2
         /// </summary>
         public void ConfirmTrade()
         {
-            AcceptTrade.Invoke();
+            AcceptTrade.BeginInvoke(null,null);
         }
 
         /// <summary>
@@ -759,6 +815,7 @@ namespace MonoTM2
         {
             cfg.UpdatePriceTimerTime = Convert.ToInt16(time);
             Config.Save(cfg);
+            UpdatePriceTimer.Interval = cfg.UpdatePriceTimerTime * 60 * 1000;
         }
 
         public double GetUpdateTimer()
@@ -776,14 +833,15 @@ namespace MonoTM2
 
         public void TurnOnOrOffAutoConfirmTrades()
         {
+
+
             if (autoConfirmTrades)
             {
                 autoConfirmTrades = false;
+
             }
-            else
-            {
-                Trades();
-            }
+            Trades();
+            AcceptTrade.BeginInvoke(null, null);
         }
 
         /// <summary>
@@ -841,12 +899,13 @@ namespace MonoTM2
             Close = true;
 
 
-            tmr.Stop();
-            tmr2.Stop();
+            UpdatePriceTimer.Stop();
+            pinPongTimer.Stop();
 
-            tmr.Dispose();
-            tmr2.Dispose();
+            UpdatePriceTimer.Dispose();
+            pinPongTimer.Dispose();
             
+          
             client.Close();
 
             // Finding.Wait();
@@ -873,7 +932,7 @@ namespace MonoTM2
                 string ans;
                 foreach (Itm I in Items)
                 {
-                    ans = CLIENT.Notification(I, cfg.key);
+                    ans = CLIENT.Notification(I, cfg.key)?? "error";
                     if (!ans.Contains("error"))
                         Thread.Sleep(cfg.Itimer);
                     else
@@ -925,6 +984,102 @@ namespace MonoTM2
             else
             {
                 return ("Ошибка");
+            }
+        }
+
+        private void SteamAuthLogin()
+        {
+            var authLogin = new UserLogin(_config.Username, _config.Password);
+            LoginResult result;
+            do
+            {
+                result = authLogin.DoLogin();
+                switch (result)
+                {
+                    case LoginResult.NeedEmail:
+                        Console.Write("An email was sent to this account's address, please enter the code here to continue: ");
+                        authLogin.EmailCode = Console.ReadLine();
+                        break;
+                    case LoginResult.NeedCaptcha:
+                        Console.WriteLine("https://steamcommunity.com/public/captcha.php?gid=" + authLogin.CaptchaGID);
+                        Console.Write("Please enter the captcha that just opened up on your default browser: ");
+                        authLogin.CaptchaText = Console.ReadLine();
+                        break;
+                    case LoginResult.Need2FA:
+                        Console.Write("Please enter in your authenticator code: ");
+                        authLogin.TwoFactorCode = Console.ReadLine();
+                        break;
+                    default:
+                        throw new Exception("Case was not accounted for. Case: " + result);
+                }
+            } while (result != LoginResult.LoginOkay);
+
+            AuthenticatorLinker linker = new AuthenticatorLinker(authLogin.Session);
+            Console.Write("Please enter the number you wish to associate this account in the format +1XXXXXXXXXX where +1 is your country code, leave blank if no new number is desired: ");
+
+            string phoneNumber = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(phoneNumber)) phoneNumber = null;
+            linker.PhoneNumber = phoneNumber;
+
+            AuthenticatorLinker.LinkResult linkResult = linker.AddAuthenticator();
+            if (linkResult != AuthenticatorLinker.LinkResult.AwaitingFinalization)
+            {
+                Console.WriteLine("Could not add authenticator: " + linkResult);
+                Console.WriteLine(
+                    "If you attempted to link an already linked account, please tell FatherFoxxy to get off his ass and implement the new stuff.");
+                return;
+            }
+
+            if (!SaveMobileAuth(linker))
+            {
+                Console.WriteLine("Issue saving auth file, link operation abandoned.");
+                return;
+            }
+
+            Console.WriteLine(
+                "You should have received an SMS code, please input it here. If the code does not arrive, please input a blank line to abandon the operation.");
+            AuthenticatorLinker.FinalizeResult finalizeResult;
+            do
+            {
+                Console.Write("SMS Code: ");
+                string smsCode = Console.ReadLine();
+                if (string.IsNullOrWhiteSpace(smsCode)) return;
+                finalizeResult = linker.FinalizeAddAuthenticator(smsCode);
+
+            } while (finalizeResult != AuthenticatorLinker.FinalizeResult.BadSMSCode);
+        }
+
+        private bool SaveMobileAuth(AuthenticatorLinker linker)
+        {
+            try
+            {
+                string sgFile = JsonConvert.SerializeObject(linker.LinkedAccount, Formatting.Indented);
+                const string fileName = "account.maFile";
+                File.WriteAllText(fileName, sgFile);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        internal void CreateAuth()
+        {
+            while (!File.Exists("account.maFile"))
+                SteamAuthLogin();
+            var sgAccount = JsonConvert.DeserializeObject<SteamGuardAccount>(File.ReadAllText("account.maFile"));
+        }
+
+        internal void GenerateGuardCode()
+        {
+            if (File.Exists("account.maFile"))
+            {
+                var sgAccount = JsonConvert.DeserializeObject<SteamGuardAccount>(File.ReadAllText("account.maFile"));
+                Console.WriteLine(sgAccount.GenerateSteamGuardCode());
+            }else
+            {
+                Console.WriteLine("File not exist!");
             }
         }
     }

@@ -24,31 +24,31 @@ namespace MonoTM2
                 {
                     switch (Mess.ToLower())
                     {
-						//показывать какие предметы были выставлены из списка покупок
-                        case "w":
-                            if (bot.exhibitMessage)
-                                bot.exhibitMessage = false;
-                            else
-                                bot.exhibitMessage = true;
-                            Console.WriteLine(bot.exhibitMessage.ToString());
+                        //привязка мобильного приложения 
+                        case "mobile":
+                            bot.CreateAuth();
                             break;
+                        case "guard":
+                            bot.GenerateGuardCode();
+                            break;
+						//показывать какие предметы были выставлены из списка покупок
                         case "p":
                         case "profit":
                             Console.WriteLine(bot.GetProfit());
                             break;
-						//подтвердить трейды
-                        //case "trade":
-                        //case "t":
-                        //    if (bot.GetConfirmTradesValue())
-                        //    {
-                        //        bot.ConfirmTrade();
-                        //    }
-                        //    else
-                        //    {
-                        //        bot.TurnOnOrOffAutoConfirmTrades();
-                        //    }
-                        //    break;
-						//добавить предмет
+                        //подтвердить трейды
+                        case "trade":
+                        case "t":
+                            if (bot.GetConfirmTradesValue())
+                            {
+                                bot.ConfirmTrade();
+                            }
+                            else
+                            {
+                                bot.TurnOnOrOffAutoConfirmTrades();
+                            }
+                            break;
+                        //добавить предмет
                         case "add":
                         case "a":
                             Console.WriteLine("Введите ссылку");
