@@ -3,7 +3,7 @@ using System.Collections.Generic;
 /*
  * все закоменченное можно раскомментить
  * 
- * 
+ *  
  */
 namespace MonoTM2
 {
@@ -29,6 +29,7 @@ namespace MonoTM2
     {
         public string result { get; set; }
         public string id { get; set; }
+        public string error { get; set; }
     }
     //
 
@@ -38,6 +39,7 @@ namespace MonoTM2
     {
         public bool success { get; set; }
         public string ping { get; set; }
+        public string error { get; set; }
     }
     //
 

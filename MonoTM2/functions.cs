@@ -1,9 +1,8 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
-using Newtonsoft.Json;
 using System.IO;
 using System.Net;
-using System.Globalization;
 namespace MonoTM2
 {
 
@@ -28,7 +27,15 @@ namespace MonoTM2
                 }
                 else
                 {
-                    if (it.result.IndexOf("изменилось") != -1 || it.result.IndexOf("вывод") != -1 || it.result.IndexOf("средств") != -1 || it.result.IndexOf("инвентарь") != -1 || it.result.IndexOf("Боты") != -1)
+                    if (it.error != null && it.error.ToLower() == "bad key")
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("неверный ключ");
+                        Console.ResetColor();
+                        System.Threading.Thread.Sleep(5000);
+                        Environment.Exit(-1);
+                    }
+                    if (it.result.ToLower().IndexOf("изменилось") != -1 || it.result.ToLower().IndexOf("вывод") != -1 || it.result.ToLower().IndexOf("средств") != -1 || it.result.ToLower().IndexOf("инвентарь") != -1 || it.result.ToLower().IndexOf("боты") != -1)
                     {
                         return false;
                     }
@@ -119,7 +126,7 @@ namespace MonoTM2
         {
 
             string resp = Web(host + "/api/ItemHistory/" + item.id + "/?key=" + key);
-            var pr = new { success = "", average = "", history = new[] { new { l_price = "" } } };
+            var pr = new { success = "", average = "", history = new[] { new { l_price = "" } }, error = "" };
             // var pr = new { success = "", average = "" };
             var inf = JsonConvert.DeserializeAnonymousType(resp, pr);
             if (inf.success == "True" || inf.success == "true")
@@ -215,9 +222,6 @@ namespace MonoTM2
                 myHttpWebRequest.Timeout = 300;
                 StreamReader myStreamReader = new StreamReader(myHttpWebResponse.GetResponseStream());
                 return myStreamReader.ReadToEnd();
-                // Выполняем запрос по адресу и получаем ответ в виде строки
-                /*  var webClient = new WebClient();
-                  return webClient.DownloadString(server);*/
             }
             catch (WebException e)
             {
@@ -426,7 +430,7 @@ namespace MonoTM2
                 //https://market.csgo.com/api/GetDiscounts/?key=[your_secret_key]
                 string answer = Web(host + "/api/GetDiscounts/?key="+key);
 
-                var pr = new { success = false, discounts = new { sell_fee = "" } };
+                var pr = new { success = false, discounts = new { sell_fee = "" } ,error=""};
                 var inf = JsonConvert.DeserializeAnonymousType(answer, pr);
                 if (inf.success == true)
                 {
@@ -434,7 +438,14 @@ namespace MonoTM2
                 }
                 else
                 {
-                   return 10.01;
+                    if (inf.error.ToLower() == "bad key")
+                    {
+                        return 10.01;
+                    }
+                    else
+                    {
+                        return 10.03;
+                    }
                 }
 
             }
@@ -448,14 +459,14 @@ namespace MonoTM2
         /// Получение дневной прибыли
         /// </summary>
         /// <param name="key"></param>
-        /// <returns>Дневная прибыль в копейках</returns>
+        /// <returns>Примерная дневная прибыль в копейках</returns>
         public int GetProfit(string key)
         {
             try
             {
                 int spent = 0, earned = 0;
-                var startDay=new DateTime(DateTime.Now.Year,DateTime.Now.Month,DateTime.Now.Day-1,21,0,1);
-                var endDay=new DateTime(DateTime.Now.Year,DateTime.Now.Month,DateTime.Now.Day,23,59,59);
+                DateTime startDay = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 0, 0, 1);
+                DateTime endDay = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 23, 59, 59);
                 //https://market.csgo.com/api/OperationHistory/[start_time]/[end_time]/?key=[your_secret_key]
                 string answer = Web(host + string.Format("/api/OperationHistory/{0}/{1}/?key={2}", (int)startDay.Subtract(new DateTime(1970, 1, 1)).TotalSeconds, (int)endDay.Subtract(new DateTime(1970, 1, 1)).TotalSeconds, key));
                 var typeT=new[] {new { h_event="", recieved="" }};
