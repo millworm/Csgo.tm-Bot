@@ -10,15 +10,15 @@ namespace MonoTM2
     {
         string host = "https://market.csgo.com";
         //поиск вещи
-        public bool Buy(Itm item, string key)
+        public bool Buy(Itm item, string key, int timeout = 200)
         {
             int i = 0;
             try
             {
-            a:
-                string resp = Web(host + "/api/Buy/" + item.id + "/" + Convert.ToInt32(item.price * 100) + "/" + item.hash + "/" + "?key=" + key);
+                a:
+                string resp = Web(host + "/api/Buy/" + item.id + "/" + Convert.ToInt32(item.price * 100) + "/" + item.hash + "/" + "?key=" + key, timeout);
                 aBuy it = JsonConvert.DeserializeObject<aBuy>(resp);
-                if (it.id.ToLower() != "false")
+                if (it.id != null && it.id.ToLower() != "false")
                 {
                     if (it.result == "ok")
                     {
@@ -32,13 +32,13 @@ namespace MonoTM2
                         Console.ForegroundColor = ConsoleColor.Red;
                         Console.WriteLine("неверный ключ");
                         Console.ResetColor();
-                        System.Threading.Thread.Sleep(5000);
+                        Console.ReadKey();
                         Environment.Exit(-1);
                     }
-                    if (it.result.ToLower().IndexOf("изменилось") != -1 || it.result.ToLower().IndexOf("вывод") != -1 || it.result.ToLower().IndexOf("средств") != -1 || it.result.ToLower().IndexOf("инвентарь") != -1 || it.result.ToLower().IndexOf("боты") != -1)
-                    {
-                        return false;
-                    }
+                    //if (it.result.ToLower().IndexOf("изменилось") != -1 || it.result.ToLower().IndexOf("вывод") != -1 || it.result.ToLower().IndexOf("средств") != -1 || it.result.ToLower().IndexOf("инвентарь") != -1 || it.result.ToLower().IndexOf("боты") != -1)
+                    //{
+                    //    return false;
+                    //}
                     if (it.result.IndexOf("устарело") == -1 && i++ < 5)
                     {
 
@@ -156,11 +156,11 @@ namespace MonoTM2
         }
 
         //Запрос оффера
-        public Trade GetOffer(string bid, string key)
+        public Trade GetOffer(string bid, string key, string o = "out")
         {
             try
             {
-                string resp = Web(host + "/api/ItemRequest/out/" + bid + "/?key=" + key);
+                string resp = Web(host + "/api/ItemRequest/" + o + "/" + bid + "/?key=" + key);
                 Trade tr = JsonConvert.DeserializeObject<Trade>(resp);
                 if (tr.success)
                     return tr;
@@ -212,14 +212,14 @@ namespace MonoTM2
         //
 
         //Веб запрос
-        public string Web(string server)
+        public string Web(string server,int timeout=200)
         {
 
             try
             {
                 HttpWebRequest myHttpWebRequest = (HttpWebRequest)HttpWebRequest.Create(server);
                 HttpWebResponse myHttpWebResponse = (HttpWebResponse)myHttpWebRequest.GetResponse();
-                myHttpWebRequest.Timeout = 300;
+                myHttpWebRequest.Timeout = timeout;
                 StreamReader myStreamReader = new StreamReader(myHttpWebResponse.GetResponseStream());
                 return myStreamReader.ReadToEnd();
             }
@@ -316,7 +316,19 @@ namespace MonoTM2
         //обновить инвентарь
         public void UpdateInvent(string key)
         {
-            Web(host + "/api/UpdateInventory/?key=" + key);
+            string answer = Web(host + "/api/UpdateInventory/?key=" + key);
+
+            var status = new { success = false };
+            var inf = JsonConvert.DeserializeAnonymousType(answer, status);
+
+            if (inf.success)
+            {
+                return;
+            }
+            else
+            {
+                Web(host + "/api/UpdateInventory/?key=" + key);
+            }
         }
 
         /// <summary>
@@ -356,9 +368,9 @@ namespace MonoTM2
             {
                 //https://market.csgo.com/api/ProcessOrder/[classid]/[instanceid]/[price]/?key=[your_secret_key]
                 string answer = Web(host + string.Format("/api/ProcessOrder/{0}/{1}/?key={2}", item.id.Replace('_', '/'), item.price * 100, key));
-//#if DEBUG
-//                System.Diagnostics.Debug.WriteLine(answer);
-//#endif
+                //#if DEBUG
+                //                System.Diagnostics.Debug.WriteLine(answer);
+                //#endif
                 var pr = new { success = false, way = "", error = "" };
                 var inf = JsonConvert.DeserializeAnonymousType(answer, pr);
                 if (inf.success == true)
@@ -367,9 +379,9 @@ namespace MonoTM2
                 }
                 else
                 {
-//#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine("ProcessOrder " + inf.error);
-//#endif
+                    //#if DEBUG
+                    //                    System.Diagnostics.Debug.WriteLine("ProcessOrder " + inf.error);
+                    //#endif
 
                     return inf.error;
                 }
@@ -428,9 +440,9 @@ namespace MonoTM2
             try
             {
                 //https://market.csgo.com/api/GetDiscounts/?key=[your_secret_key]
-                string answer = Web(host + "/api/GetDiscounts/?key="+key);
+                string answer = Web(host + "/api/GetDiscounts/?key=" + key);
 
-                var pr = new { success = false, discounts = new { sell_fee = "" } ,error=""};
+                var pr = new { success = false, discounts = new { sell_fee = "" }, error = "" };
                 var inf = JsonConvert.DeserializeAnonymousType(answer, pr);
                 if (inf.success == true)
                 {
@@ -469,10 +481,10 @@ namespace MonoTM2
                 DateTime endDay = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 23, 59, 59);
                 //https://market.csgo.com/api/OperationHistory/[start_time]/[end_time]/?key=[your_secret_key]
                 string answer = Web(host + string.Format("/api/OperationHistory/{0}/{1}/?key={2}", (int)startDay.Subtract(new DateTime(1970, 1, 1)).TotalSeconds, (int)endDay.Subtract(new DateTime(1970, 1, 1)).TotalSeconds, key));
-                var typeT=new[] {new { h_event="", recieved="" }};
-                var pr = new { success = false, history = new[] { new { h_event = "", recieved = "", stage =""} } };
+                var typeT = new[] { new { h_event = "", recieved = "" } };
+                var pr = new { success = false, history = new[] { new { h_event = "", recieved = "", stage = "" } } };
                 var inf = JsonConvert.DeserializeAnonymousType(answer, pr);
-                if (inf.success == true && inf.history!=null)
+                if (inf.success == true && inf.history != null)
                 {
                     foreach (var i in inf.history)
                     {
@@ -480,7 +492,7 @@ namespace MonoTM2
                         {
                             earned += Convert.ToInt32(i.recieved);
                         }
-                        if (i.h_event == "buy_go" && i.stage!="5")
+                        if (i.h_event == "buy_go" && i.stage != "5")
                         {
                             spent += Convert.ToInt32(i.recieved);
                         }
@@ -501,7 +513,7 @@ namespace MonoTM2
 
         public void GoOffline(string key)
         {
-           // https://market.csgo.com/api/GoOffline/?key=
+            // https://market.csgo.com/api/GoOffline/?key=
             Web(host + "/api/GoOffline/?key=" + key);
         }
     }

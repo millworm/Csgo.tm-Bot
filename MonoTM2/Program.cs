@@ -24,6 +24,9 @@ namespace MonoTM2
                 {
                     switch (Mess.ToLower())
                     {
+                        case "accept":
+                            bot.AcceptMobileOrdersFunc();
+                            break;
                         //привязка мобильного приложения 
                         case "mobile":
                             bot.CreateAuth();
@@ -42,6 +45,16 @@ namespace MonoTM2
                             if (bot.GetConfirmTradesValue())
                             {
                                 bot.ConfirmTrade();
+                                Console.WriteLine("Выключить прием?");
+                                var a=  Console.ReadLine();
+
+                                if (a.ToLower() == "y")
+                                {
+                                    bot.TurnOnOrOffAutoConfirmTrades();
+
+                                    if (bot.GetConfirmTradesValue()) 
+                                        Console.WriteLine("Отключено");
+                                }
                             }
                             else
                             {
@@ -63,6 +76,7 @@ namespace MonoTM2
                             bot.CheckQuickOrders();
                             //обновление ордеров и оповщений
                             bot.UpdateOrdersAndNotifications();
+                            
                             break;
 						//вывести прибыль с предмета
                         case "gprice":
