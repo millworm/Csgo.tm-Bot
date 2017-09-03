@@ -1,14 +1,14 @@
 ﻿using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.IO;
 namespace MonoTM2
 {
     [JsonObject(Title = "RootObject")]
-    [Serializable]
     class Config
     {
-        public string login { get; set; } = ""; 
-        public string password { get; set; } = "";
+        //public string login { get; set; } = ""; 
+        //public string password { get; set; } = "";
         //ключ
         public string key { get; set; } = "";
         //прибыль
@@ -22,6 +22,7 @@ namespace MonoTM2
         //таймер пинпонга
         public double PingPongTimerTime { get; set; } = 0.5;
 
+        public Dictionary<MessageType, bool> Messages = new Dictionary<MessageType, bool>();
         //public Config()
         //{
         //    InitializeAll();
@@ -37,15 +38,16 @@ namespace MonoTM2
         //    PingPongTimerTime = 0.5;
         //}
 
-        public static Config Reload(Config cfg){
+        public static Config Reload(Config _cfg){
 
             if (!File.Exists("config.json"))
             {
-                File.WriteAllText("config.json", JsonConvert.SerializeObject(cfg));
+                File.WriteAllText("config.json", JsonConvert.SerializeObject(_cfg));
             }
 
-            cfg = JsonConvert.DeserializeObject<Config>(File.ReadAllText("config.json"));
+            var cfg = JsonConvert.DeserializeObject<Config>(File.ReadAllText("config.json"));
 
+            
             return cfg;
         }
 

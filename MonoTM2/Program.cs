@@ -3,7 +3,7 @@
 
 namespace MonoTM2
 {
-    class Program
+    static class Program
     {
         static void Main()
         {
@@ -13,16 +13,14 @@ namespace MonoTM2
             //стартуем
             bot.Start();
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("Запуск выполнен");
-            Console.ResetColor();
             string Mess = "";
             while (Mess != "q")
             {
                 Mess = Console.ReadLine();
                 try
                 {
-                    switch (Mess.ToLower())
+                    switch (Mess.ToLowerInvariant())
                     {
                         case "accept":
                             bot.AcceptMobileOrdersFunc();
@@ -34,7 +32,7 @@ namespace MonoTM2
                         case "guard":
                             bot.GenerateGuardCode();
                             break;
-						//показывать какие предметы были выставлены из списка покупок
+                        //показывать какие предметы были выставлены из списка покупок
                         case "p":
                         case "profit":
                             Console.WriteLine(bot.GetProfit());
@@ -46,14 +44,16 @@ namespace MonoTM2
                             {
                                 bot.ConfirmTrade();
                                 Console.WriteLine("Выключить прием?");
-                                var a=  Console.ReadLine();
+                                var a = Console.ReadLine();
 
-                                if (a.ToLower() == "y")
+                                if (a.ToLowerInvariant() == "y")
                                 {
                                     bot.TurnOnOrOffAutoConfirmTrades();
 
-                                    if (bot.GetConfirmTradesValue()) 
+                                    if (bot.GetConfirmTradesValue())
+                                    {
                                         Console.WriteLine("Отключено");
+                                    }
                                 }
                             }
                             else
@@ -68,7 +68,7 @@ namespace MonoTM2
                             var link = Console.ReadLine();
                             bot.AddItem(link);
                             break;
-						//обноление
+                        //обноление
                         case "update":
                             //обноление цен
                             bot.UpdatePrice();
@@ -76,9 +76,9 @@ namespace MonoTM2
                             bot.CheckQuickOrders();
                             //обновление ордеров и оповщений
                             bot.UpdateOrdersAndNotifications();
-                            
+
                             break;
-						//вывести прибыль с предмета
+                        //вывести прибыль с предмета
                         case "gprice":
                             Console.WriteLine(bot.GetPrice());
                             break;
@@ -88,26 +88,30 @@ namespace MonoTM2
                             Console.WriteLine("Новая прибыль " + bot.GetPrice().ToString());
 
                             break;
-						//вывести список предметов	
+                        //вывести список предметов	
                         case "list":
                             Console.ForegroundColor = ConsoleColor.Magenta;
                             int n = 0;
                             var tempItems = bot.GetListItems();
                             foreach (var y in tempItems)
+                            {
                                 Console.WriteLine("[{3}] {0} {1} {2}", y.name, y.price, y.count, n++);
+                            }
                             Console.ResetColor();
                             break;
-                        
-						//удалить предмет
+
+                        //удалить предмет
                         case "delete":
                         case "d":
                             Console.WriteLine("Введите номер");
                             var N = Convert.ToInt16(Console.ReadLine());
                             Console.WriteLine("Удалить {0}  ?", bot.GetItem(N).name);
-                            var A = Console.ReadLine().ToLower();
+                            var A = Console.ReadLine().ToLowerInvariant();
                             if (A == "y")
+                            {
                                 bot.RemoveItem(N);
-                            Console.WriteLine("Удалено");                      
+                            }
+                            Console.WriteLine("Удалено");
                             break;
                         case "stime":
                             Console.WriteLine("Введите время");
@@ -120,6 +124,13 @@ namespace MonoTM2
                         case "status":
                             Console.WriteLine(bot.Status());
                             break;
+                        case "r":
+                            bot.ReloadBool();
+                            break;
+
+                        default:
+                            Console.WriteLine("Команда неизвестна");
+                            break;
                     }
                 }
                 catch (Exception tty)
@@ -131,5 +142,5 @@ namespace MonoTM2
         }
 
     }
-    
+
 }

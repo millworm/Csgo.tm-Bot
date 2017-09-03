@@ -74,7 +74,7 @@ namespace MonoTM2
         //public string i_name_color { get; set; }
         // public string i_rarity { get; set; }
         //   public List<IDescription> i_descriptions { get; set; }
-                  public string ui_status { get; set; }
+        public string ui_status { get; set; }
         //          public string he_name { get; set; }
         public double ui_price { get; set; }
         public string i_classid { get; set; }
@@ -190,6 +190,7 @@ namespace MonoTM2
         public int botid { get; set; }
         public string profile { get; set; }
         public string secret { get; set; }
+        public string error { get; set; }
     }
 
 
@@ -295,8 +296,8 @@ namespace MonoTM2
     public class MarketTradesList
     {
         public string dir { get; set; }
-      public string trade_id { get; set; }
-      public string bot_id { get; set; }
+        public string trade_id { get; set; }
+        public string bot_id { get; set; }
     }
 
 
@@ -304,11 +305,26 @@ namespace MonoTM2
     public class ItemHistory
     {
         public bool success { get; set; }
-        List<Hist> history { get; set; }
+       // List<Hist> history { get; set; }
     }
-    public class Hist{
+    public class Hist {
         public string l_price { get; set; }
         public string l_time { get; set; }
     }
 
+    public class InventOffersInfo
+    {
+        public int getCount { get; set; } = 0;
+        public int outCount { get; set; } = 0;
+}
+    enum MessageType
+    {
+        Info,
+        Socket,
+        GetWeapon,
+        GiveWeapon,
+        BuyWeapon,
+        Timer,
+        Error
+    }
 }
