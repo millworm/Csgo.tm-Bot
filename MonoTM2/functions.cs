@@ -229,7 +229,7 @@ namespace MonoTM2
         //
 
         //Веб запрос
-        public static string Web(string server, int timeout = 200)
+        public static string Web(string server, int timeout = 500)
         {
             try
             {
@@ -549,6 +549,33 @@ namespace MonoTM2
                 return returnVariable;
             }
 
+            catch
+            {
+                return null;
+            }
+        }
+        /// <summary>
+        /// Получить список включенных уведомлений о изменении цены
+        /// </summary>
+        /// <param name="key">Api key</param>
+        public CNotifications GetNotifications(string key)
+        {
+            //https://market.csgo.com/api/GetNotifications/?key=[your_secret_key]
+            try
+            {
+                string answer = Web(host + "/api/GetNotifications/?key=" + key);
+                //var pr = new { success = false, Notifications = new { i_classid = "", i_instanceid ="", n_val="" }, error = "" };
+                var inf = JsonConvert.DeserializeObject<CNotifications>(answer);
+                if (inf.success == true)
+                {
+                    return inf;
+                }
+                else
+                {
+                    return null;
+                }
+
+            }
             catch
             {
                 return null;

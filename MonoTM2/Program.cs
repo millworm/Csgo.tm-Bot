@@ -93,9 +93,22 @@ namespace MonoTM2
                             Console.ForegroundColor = ConsoleColor.Magenta;
                             int n = 0;
                             var tempItems = bot.GetListItems();
+                            var profitList = bot.GetPrice();
+
+                            Console.WriteLine($" №    {string.Format("{0,-45}", "Название")}\tЦена\tПрибыль\tТип");
                             foreach (var y in tempItems)
                             {
-                                Console.WriteLine("[{3}] {0} {1} {2}", y.name, y.price, y.count, n++);
+                                var nameList = string.Format("{0,-45}", y.name);
+                                string typeList = Convert.ToString(y.priceCheck).Substring(0,5);
+                                if (y.profit != 0)
+                                {
+                                    Console.WriteLine("[{3}]  {0}\t{1}\t{2}\t{4}", nameList, y.price, y.profit, n++.ToString("00"), typeList);
+                                }
+                                else
+                                {
+                                    Console.WriteLine("[{3}]  {0}\t{1}\t{2}\t{4}", nameList, y.price, profitList, n++.ToString("00"), typeList);
+                                }
+
                             }
                             Console.ResetColor();
                             break;
@@ -110,8 +123,9 @@ namespace MonoTM2
                             if (A == "y")
                             {
                                 bot.RemoveItem(N);
+                                Console.WriteLine("Удалено");
                             }
-                            Console.WriteLine("Удалено");
+
                             break;
                         case "stime":
                             Console.WriteLine("Введите время");
@@ -127,7 +141,89 @@ namespace MonoTM2
                         case "r":
                             bot.ReloadBool();
                             break;
+                        case "sprofit":
+                            Console.WriteLine("Введите номер вещи и прибыль через пробел (пример: 2 20).\nДля использования общей прибыли выставить 0");
+                            var line = Console.ReadLine();
+                            var data = line.Split();
+                            if (data.Length != 2)
+                            {
+                                Console.WriteLine("Неверный формат");
+                            }
+                            else
+                            {
+                                var id = Convert.ToInt32(data[0]);
+                                var profit = Convert.ToInt32(data[1]);
 
+                                if (id > bot.GetListItems().Count || id < 0)
+                                {
+                                    Console.WriteLine("Номер за пределами списка вещей");
+                                    return;
+                                }
+                                if (profit < 0)
+                                {
+                                    Console.WriteLine("Прибыль ниже нуля");
+                                    return;
+                                }
+
+                                var item = bot.GetItem(id);
+                                Console.WriteLine($"Выставить прибыль для {item.name} прибыль в {profit} копеек?");
+
+                                var spC = Console.ReadLine().ToLowerInvariant();
+                                if (spC == "y")
+                                {
+                                    if (bot.SetProfit(id, profit))
+                                        Console.WriteLine("Выставлено");
+                                    else
+                                        Console.WriteLine("Ошибка");
+                                }
+                            }
+                            break;
+                        case "scheck":
+                            Console.WriteLine("Сменить способ проверки цен для предмета.\nВведите номер предмета и тип проверки (0 - обычная, 1 - уведомления)\nПример: 1 1");
+                            line = Console.ReadLine();
+                            data = line.Split();
+                            if (data.Length != 2)
+                            {
+                                Console.WriteLine("Неверный формат");
+                            }
+
+                            var _id = Convert.ToInt32(data[0]);
+                            var type = Convert.ToInt32(data[1]);
+                            if (_id > bot.GetListItems().Count || _id < 0)
+                            {
+                                Console.WriteLine("Номер за пределами списка вещей");
+                                return;
+                            }
+                            if (type < 0 || type > 1)
+                            {
+                                Console.WriteLine("Неизвестный тип");
+                                return;
+                            }
+
+                            bot.SetPriceCheck(_id, type);
+                            break;
+                        case "gcheck":
+                            Console.WriteLine("Введите номер предмета");
+                            var gcheckId = Convert.ToInt32(Console.ReadLine());
+                            if (gcheckId > bot.GetListItems().Count || gcheckId < 0)
+                            {
+                                Console.WriteLine("Номер за пределами списка вещей");
+                                return;
+                            }
+                            else
+                            {
+                                var typeCheck = bot.GetPriceCheck(gcheckId);
+                                switch (typeCheck)
+                                {
+                                    case PriceCheck.Notification:
+                                        Console.WriteLine("Уведомления");
+                                        break;
+                                    case PriceCheck.Price:
+                                        Console.WriteLine("Обычный");
+                                        break;
+                                }
+                            }
+                            break;
                         default:
                             Console.WriteLine("Команда неизвестна");
                             break;

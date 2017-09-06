@@ -19,7 +19,7 @@ namespace MonoTM2
     public class CBot
     {
         private ReaderWriterLockSlim listLock = new ReaderWriterLockSlim();
-        
+
         //переменные для подтверждений трейдов 
         private string _user, _pass;
         private string _apiKey;
@@ -48,7 +48,7 @@ namespace MonoTM2
         List<Itm> Items = new List<Itm>();
 
         System.Action AcceptMobileOrdersAction, UpdatePriceDelegateAction, QuickOrderAction,
-            AcceptTradeAction, UpdateOrdersDelegate, UpdateNotificationsDelegate;
+            AcceptTradeAction, UpdateOrdersDelegate, UpdateNotificationsDelegate, CheckNotificationsDelegate;
 
         AsyncCallback CallbackUpdater;
         IAsyncResult IAcceptOutTradesResult, IAcceptInTradesResult;
@@ -129,6 +129,7 @@ namespace MonoTM2
             UpdateNotificationsDelegate = CorrectNotifications;
             QuickOrderAction = QuickOrderF;
             AcceptMobileOrdersAction = AcceptMobile;
+            CheckNotificationsDelegate = CheckNotifications;
 
             CLIENT = new functions();
             CLIENT1 = new functions();
@@ -509,42 +510,74 @@ namespace MonoTM2
                 int count = 0;
                 foreach (Itm I in Items)
                 {
-                    Thread.Sleep(cfg.Itimer);
-                    // new System.Action(() => Console.Write("\r{0}/{1} ", ++count, Items.Count)).BeginInvoke(null, null);
-
-                    MinPrice = Convert.ToDouble(CLIENT.GetMinPrice(I, cfg.key));
-
-                    if (MinPrice == -1) continue;
-
-                    Averange = Convert.ToDouble(CLIENT.GetAverangePrice(I, cfg.key));
-                    I.count = 1;
-
-                    if (Averange < MinPrice)
+                    //Если предмет добавлен с уведомлений, то его цену прверяем в списке уведомлений
+                    if (I.priceCheck == PriceCheck.Notification)
                     {
-                        Cost = Averange;
+                        var ans = CLIENT1.GetNotifications(cfg.key);
+                        if (ans != null && ans.success)
+                        {
+                            var item = ans.Notifications.Find(fi => fi.i_classid + "_" + fi.i_instanceid == I.id);
+                            if (item != null)
+                            {
+                                I.price = Convert.ToInt32(item.n_val) / 100.0;
+                            }
+                        }
                     }
                     else
                     {
-                        Cost = MinPrice;
-                    }
+                        //проверяем остальные вещи
 
-                    if (Cost > 20000)
-                    {
-                        I.price = Math.Round((Cost * Discount - cfg.price * 2) / 100.0, 2);
-                        continue;
-                    }
-                    if (Cost > 10000)
-                    {
-                        I.price = Math.Round((Cost * Discount - cfg.price) / 100.0, 2);
-                        continue;
-                    }
-                    else
-                    {
-                        I.price = Math.Round((Cost * Discount - cfg.price) / 100.0, 2);
-                        continue;
-                    }
+                        Thread.Sleep(cfg.Itimer);
+                        // new System.Action(() => Console.Write("\r{0}/{1} ", ++count, Items.Count)).BeginInvoke(null, null);
 
+                        MinPrice = Convert.ToDouble(CLIENT.GetMinPrice(I, cfg.key));
 
+                        if (MinPrice == -1)
+                        {
+                            MinPrice = Convert.ToDouble(CLIENT.GetMinPrice(I, cfg.key));
+                            if (MinPrice == -1)
+                                continue;
+                        }
+
+                        Averange = Convert.ToDouble(CLIENT.GetAverangePrice(I, cfg.key));
+
+                        if (Averange < MinPrice)
+                        {
+                            Cost = Averange;
+                        }
+                        else
+                        {
+                            Cost = MinPrice;
+                        }
+
+                        //если у предмета выставлена персональная прибыль, то используем ее, а не общую
+                        double profit;
+                        if (I.profit != 0)
+                        {
+                            profit = I.profit;
+                        }
+                        else
+                        {
+                            profit = cfg.price;
+                        }
+
+                        if (Cost > 20000)
+                        {
+                            I.price = Math.Round((Cost * Discount - profit * 2) / 100.0, 2);
+                            continue;
+                        }
+                        if (Cost > 10000)
+                        {
+                            I.price = Math.Round((Cost * Discount - profit) / 100.0, 2);
+                            continue;
+                        }
+                        else
+                        {
+                            I.price = Math.Round((Cost * Discount - profit) / 100.0, 2);
+                            continue;
+                        }
+
+                    }
                 }
 
                 WriteMessage("Обновлены цены", MessageType.Info);
@@ -791,10 +824,10 @@ namespace MonoTM2
         /// Добавление предмета в список покупок
         /// </summary>
         /// <param name="link">ссылка на страницу с предметом</param>
-        public void AddItem(string link)
+        public void AddItem(string link, int _price = 0, PriceCheck _check = PriceCheck.Price)
         {
 
-            var itm = new Itm { link = link, count = 1, price = 0, turn = true };
+            var itm = new Itm { link = link, price = _price, priceCheck = _check };
 
             itm.hash = CLIENT.GetHash(itm, cfg.key);
             //проверяем, нет ли этого предмета в списке
@@ -806,8 +839,9 @@ namespace MonoTM2
             }
 
 
-            WriteMessage("Добавлен", MessageType.Info);
+
             Items.Add(itm);
+            WriteMessage($"Добавлен {itm.name}\nЦена {itm.price} рублей", MessageType.Info);
             Save(false);
         }
 
@@ -958,6 +992,7 @@ namespace MonoTM2
             {
                 // UpdateOrdersDelegate.BeginInvoke(null, null);
                 UpdateNotificationsDelegate.Invoke();
+                CheckNotificationsDelegate.Invoke();
             }
         }
         /// <summary>
@@ -1350,7 +1385,85 @@ namespace MonoTM2
         }
         //
 
+        /// <summary>
+        /// Проверяем, есть ли предметы в уведомлениях, которые нужно добавить в покупки
+        /// </summary>
+        public void CheckNotifications()
+        {
+            try
+            {
+                int i = 0;
+                var ans = CLIENT1.GetNotifications(cfg.key);
+                if (ans != null && ans.success)
+                {
+                    foreach (var itm in ans.Notifications)
+                    {
+                        var haveInItems = Items.Find(item => item.id == itm.i_classid + "_" + itm.i_instanceid);
+                        if (haveInItems == null)
+                        {
+                            AddItem("https://market.csgo.com/item/" + itm.i_classid + "_" + itm.i_instanceid, Convert.ToInt32(itm.n_val) / 100, PriceCheck.Notification);
+                            i++;
+                        }
+                    }
+                }
+                WriteMessage($"Добавлено {i} предметов", MessageType.Info);
+            }
+            catch
+            {
 
+            }
+        }
+
+        /// <summary>
+        /// Выставление персональной прибыли для предмета
+        /// </summary>
+        /// <param name="_id">Номер предмета в списке</param>
+        /// <param name="_profit">Прибыль</param>
+        /// <returns></returns>
+        public bool SetProfit(int _id, int _profit)
+        {
+            try
+            {                
+                Items[_id].profit = _profit;
+                Save(false);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+
+        }
+        /// <summary>
+        /// Тип проверки цены на предмет
+        /// </summary>
+        /// <param name="_id">Номер предмета</param>
+        /// <returns></returns>
+        public PriceCheck GetPriceCheck(int _id)
+        {
+            return Items[_id].priceCheck;
+        }
+
+        /// <summary>
+        /// Установить тип проверки цены
+        /// </summary>
+        /// <param name="_id">Номер предмета</param>
+        /// <param name="_type">Тип</param>
+        /// <returns></returns>
+        public bool SetPriceCheck(int _id, int _type)
+        {
+            try
+            {
+                var type = (PriceCheck)_type;
+                Items[_id].priceCheck = type;
+                Save(false);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
 
 

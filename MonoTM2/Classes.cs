@@ -152,14 +152,15 @@ namespace MonoTM2
 
         public string name { get; set; }
         public string link { get; set; }
-        public int count { get; set; }
         public double price { get; set; }
         /// <summary>
         /// Format: [classid]_[instanceid]
         /// </summary>
         public string hash { get; set; }
         public string id { get; set; }
-        public bool turn { get; set; }
+        public double profit { get; set; } = 0;
+        //public bool turn { get; set; }
+        public PriceCheck priceCheck { get; set; } = PriceCheck.Price;
     }
     [Serializable]
     public class WSItm
@@ -317,6 +318,21 @@ namespace MonoTM2
         public int getCount { get; set; } = 0;
         public int outCount { get; set; } = 0;
 }
+
+    public class CNotifications
+    {
+        public bool success { get; set; }
+        public List<NotificationsItems> Notifications;
+    }
+
+    public class NotificationsItems
+    {
+        public string i_classid { get; set; }
+        public string i_instanceid { get; set; }
+        public string i_market_hash_name { get; set; }
+        public string i_market_name { get; set; }
+        public string n_val { get; set; }
+    }
     enum MessageType
     {
         Info,
@@ -326,5 +342,10 @@ namespace MonoTM2
         BuyWeapon,
         Timer,
         Error
+    }
+
+    public enum PriceCheck
+    {
+        Price, Notification
     }
 }
