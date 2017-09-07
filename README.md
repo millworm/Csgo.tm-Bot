@@ -7,3 +7,5 @@
 Необходимые библиотеки для работы:<br>
    <a href="https://github.com/FatherFoxxy/SteamToolkit">SteamToolKit</a><br>
    <a href="https://github.com/geel9/SteamAuth">SteamAuth</a>
+   
+P.s. Бот может самостоятельно принимать(если заполнить configuration.json) и передавать вещи, если имеется maFile. для автоматической авторизации необходимо использовать SteamToolkit из моего репозитория

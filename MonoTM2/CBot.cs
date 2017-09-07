@@ -1412,7 +1412,8 @@ namespace MonoTM2
                             i++;
                         }
                     }
-                    WriteMessage($"Добавлено {i} предметов", MessageType.Info);
+                    if(i!=0)
+                        WriteMessage($"Добавлено {i} предметов", MessageType.Info);
                 }
                
             }
