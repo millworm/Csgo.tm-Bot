@@ -11,7 +11,7 @@ namespace MonoTM2
             //загрузка всех настроек
             bot.Loader();
             //стартуем
-            bot.Start();
+           bot.Start();
 
             Console.WriteLine("Запуск выполнен");
             string Mess = "";
@@ -154,15 +154,15 @@ namespace MonoTM2
                                 var id = Convert.ToInt32(data[0]);
                                 var profit = Convert.ToInt32(data[1]);
 
-                                if (id > bot.GetListItems().Count || id < 0)
+                                if (id >= bot.GetListItems().Count || id < 0)
                                 {
                                     Console.WriteLine("Номер за пределами списка вещей");
-                                    return;
+                                    break;                               
                                 }
                                 if (profit < 0)
                                 {
                                     Console.WriteLine("Прибыль ниже нуля");
-                                    return;
+                                    break;
                                 }
 
                                 var item = bot.GetItem(id);
@@ -185,19 +185,20 @@ namespace MonoTM2
                             if (data.Length != 2)
                             {
                                 Console.WriteLine("Неверный формат");
+                                break;
                             }
 
                             var _id = Convert.ToInt32(data[0]);
                             var type = Convert.ToInt32(data[1]);
-                            if (_id > bot.GetListItems().Count || _id < 0)
+                            if (_id >= bot.GetListItems().Count || _id < 0)
                             {
                                 Console.WriteLine("Номер за пределами списка вещей");
-                                return;
+                                break;
                             }
                             if (type < 0 || type > 1)
                             {
                                 Console.WriteLine("Неизвестный тип");
-                                return;
+                                break;
                             }
 
                             bot.SetPriceCheck(_id, type);
@@ -205,10 +206,9 @@ namespace MonoTM2
                         case "gcheck":
                             Console.WriteLine("Введите номер предмета");
                             var gcheckId = Convert.ToInt32(Console.ReadLine());
-                            if (gcheckId > bot.GetListItems().Count || gcheckId < 0)
+                            if (gcheckId >= bot.GetListItems().Count || gcheckId < 0)
                             {
                                 Console.WriteLine("Номер за пределами списка вещей");
-                                return;
                             }
                             else
                             {
@@ -224,6 +224,7 @@ namespace MonoTM2
                                 }
                             }
                             break;
+
                         default:
                             Console.WriteLine("Команда неизвестна");
                             break;

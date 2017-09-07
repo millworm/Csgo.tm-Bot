@@ -44,6 +44,7 @@ namespace MonoTM2
 
         functions CLIENT, CLIENT1;
         private WebSocket client;
+        
         const string host = "wss://wsn.dota2.net/wsn/";
         List<Itm> Items = new List<Itm>();
 
@@ -95,6 +96,7 @@ namespace MonoTM2
 
         public void Loader()
         {
+           
             AcceptTradeAction = AcceptTrades;
 
             if (!String.IsNullOrEmpty(_config.Username))
@@ -200,7 +202,7 @@ namespace MonoTM2
 
             client.OnError += (ss, ee) =>
             {
-                WriteMessage(string.Format("Ошибка: {0}\n{1}" + Environment.NewLine, ee.Message, ee.Exception), MessageType.Error);
+                //WriteMessage(string.Format("Ошибка: {0}\n{1}" + Environment.NewLine, ee.Message, ee.Exception), MessageType.Error);
             };
 
             var product = new { type = "" };
@@ -838,11 +840,16 @@ namespace MonoTM2
                 return;
             }
 
-
-
-            Items.Add(itm);
-            WriteMessage($"Добавлен {itm.name}\nЦена {itm.price} рублей", MessageType.Info);
-            Save(false);
+            if (itm.name != "")
+            {
+                Items.Add(itm);
+                WriteMessage($"Добавлен {itm.name}\nЦена {itm.price} рублей", MessageType.Info);
+                Save(false);
+            }
+            else
+            {
+                WriteMessage($"Ошибка при добавлении. Попробуйте еще раз.", MessageType.Error);
+            }
         }
 
         /// <summary>
@@ -1401,12 +1408,13 @@ namespace MonoTM2
                         var haveInItems = Items.Find(item => item.id == itm.i_classid + "_" + itm.i_instanceid);
                         if (haveInItems == null)
                         {
-                            AddItem("https://market.csgo.com/item/" + itm.i_classid + "_" + itm.i_instanceid, Convert.ToInt32(itm.n_val) / 100, PriceCheck.Notification);
+                            AddItem("https://market.csgo.com/item/" + itm.i_classid + "-" + itm.i_instanceid, Convert.ToInt32(itm.n_val) / 100, PriceCheck.Notification);
                             i++;
                         }
                     }
+                    WriteMessage($"Добавлено {i} предметов", MessageType.Info);
                 }
-                WriteMessage($"Добавлено {i} предметов", MessageType.Info);
+               
             }
             catch
             {
@@ -1423,7 +1431,7 @@ namespace MonoTM2
         public bool SetProfit(int _id, int _profit)
         {
             try
-            {                
+            {
                 Items[_id].profit = _profit;
                 Save(false);
                 return true;

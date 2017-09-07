@@ -73,16 +73,20 @@ namespace MonoTM2
             }
         }
         //Получить hash предмета
-        public string GetHash(Itm item, string key)
+        /// <summary>
+        /// Получает хеш предмета и заполняет название
+        /// </summary>
+        /// <param name="item">предмет для которого нужно получить хеш и заполнить название</param>
+        /// <param name="key">Api key</param>
+        /// <param name="lang">en,ru</param>
+        /// <returns></returns>
+        public string GetHash(Itm item, string key, string lang = "en")
         {
-            int start = item.link.IndexOf("item/") + 5;
-            int end = item.link.IndexOf("-", start);
-            end = item.link.IndexOf("-", end + 1);
-            if (end == -1) end = item.link.Length;
-            string code = item.link.Substring(start, end - start);
-            code = code.Replace("-", "_");
+            string pattern = "[0-9]{1,15}[-]{1}[0-9]{1,15}";
+            var match = System.Text.RegularExpressions.Regex.Match(item.link, pattern);
+            var code = match.Value.Replace("-", "_");
 
-            string resp = Web(host + "/api/ItemInfo/" + code + "/en/?key=" + key);
+            string resp = Web(host + "/api/ItemInfo/" + code + "/" + lang + "/?key=" + key, 5000);
             Info inf = JsonConvert.DeserializeObject<Info>(resp);
 
             item.name = inf.name + " (" + inf.quality + ")";
@@ -436,7 +440,7 @@ namespace MonoTM2
         /// Запросить скидку
         /// </summary>
         /// <param name="key"></param>
-        /// <returns>число типа double</returns>
+        /// <returns>Если не было ошибок - скидку; если были, то значения 10.01 - 10.03</returns>
         public double GetDiscounts(string key)
         {
             try

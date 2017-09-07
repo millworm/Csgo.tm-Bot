@@ -141,7 +141,7 @@ namespace MonoTM2
         //   public List<Tag> tags { get; set; }
         public string hash { get; set; }
         public string min_price { get; set; }
-        public List<Offer> offers { get; set; }
+        //public List<Offer> offers { get; set; }
     }
     //
 
