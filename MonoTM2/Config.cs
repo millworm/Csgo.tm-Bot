@@ -7,8 +7,10 @@ namespace MonoTM2
     [JsonObject(Title = "RootObject")]
     class Config
     {
-        //public string login { get; set; } = ""; 
-        //public string password { get; set; } = "";
+        public string SteamLogin { get; set; } = ""; 
+        public string SteamPassword { get; set; } = "";
+        public string SteamMachineAuth { get; set; } = "";
+        public string SteamApiKey { get; set; } = "";
         //ключ
         public string key { get; set; } = "";
         //прибыль
@@ -38,22 +40,14 @@ namespace MonoTM2
         //    PingPongTimerTime = 0.5;
         //}
 
-        public static Config Reload(Config _cfg){
-
-            if (!File.Exists("config.json"))
-            {
-                File.WriteAllText("config.json", JsonConvert.SerializeObject(_cfg));
-            }
-
-            var cfg = JsonConvert.DeserializeObject<Config>(File.ReadAllText("config.json"));
-
-            
-            return cfg;
+        public static Config Reload(){
+                        return JsonConvert.DeserializeObject<Config>(File.ReadAllText("config.json"));
         }
 
         public static void Save(Config cfg)
         {
             File.WriteAllText("config.json", JsonConvert.SerializeObject(cfg));
         }
+
     }
 }

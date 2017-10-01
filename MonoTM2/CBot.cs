@@ -18,109 +18,75 @@ namespace MonoTM2
 {
     public class CBot
     {
-        private ReaderWriterLockSlim listLock = new ReaderWriterLockSlim();
-
-        //переменные для подтверждений трейдов 
-        private string _user, _pass;
-        private string _apiKey;
-        private Account _account;
-        private DefaultConfig _config = new DefaultConfig("configuration.json");
-        private readonly JsonConfigHandler ConfigHandler = new JsonConfigHandler();
-
-        private readonly Web Web = new Web(new SteamWebRequestHandler());
-        EconServiceHandler offerHandler;
-        MarketHandler marketHandler;
-
-
         bool autoConfirmTrades, Close, accountFileExist;
-        bool tradesOut = true, tradesIn = true;
+
         //конфиг
         Config cfg = new Config();
-        //
-        //delegate void voidDelegate();
+        TradeWorker tradeWorker = new TradeWorker();
 
         Thread Find;
         Task Finding;
 
         functions CLIENT, CLIENT1;
         private WebSocket client;
-        
+
         const string host = "wss://wsn.dota2.net/wsn/";
         List<Itm> Items = new List<Itm>();
 
-        System.Action AcceptMobileOrdersAction, UpdatePriceDelegateAction, QuickOrderAction,
-            AcceptTradeAction, UpdateOrdersDelegate, UpdateNotificationsDelegate, CheckNotificationsDelegate;
+        System.Action UpdatePriceDelegateAction, QuickOrderAction,
+             UpdateOrdersDelegate, UpdateNotificationsDelegate, CheckNotificationsDelegate;
 
         AsyncCallback CallbackUpdater;
-        IAsyncResult IAcceptOutTradesResult, IAcceptInTradesResult;
 
         System.Timers.Timer UpdatePriceTimer = new System.Timers.Timer();
         System.Timers.Timer pinPongTimer = new System.Timers.Timer();
 
-        void Trades()
-        {
-
-            autoConfirmTrades = true;
-
-            try
-            {
-                //загрузка данный для подтверждений трейдов
-                _config = ConfigHandler.Reload(_config);
-                _apiKey = _config.ApiKey;
-                _user = _config.Username;
-                _pass = _config.Password;
-
-                _account = Web.RetryDoLogin(TimeSpan.FromSeconds(5), 10, _user, _pass, _config.SteamMachineAuth);
-
-                if (!string.IsNullOrEmpty(_account.SteamMachineAuth))
-                {
-                    _config.SteamMachineAuth = _account.SteamMachineAuth;
-                    ConfigHandler.WriteChanges(_config);
-                }
-                Console.WriteLine("Авторизован!");
-
-                offerHandler = new EconServiceHandler(_apiKey);
-                marketHandler = new MarketHandler();
-                marketHandler.EligibilityCheck(_account.SteamId, _account.AuthContainer);
-
-                //
-            }
-            catch (Exception ex)
-            {
-                autoConfirmTrades = false;
-                Console.WriteLine(ex.Message);
-            }
-
-
-        }
-
         public void Loader()
         {
-           
-            AcceptTradeAction = AcceptTrades;
 
-            if (!String.IsNullOrEmpty(_config.Username))
+            // AcceptTradeAction = AcceptTrades;
+            //загрузка настроек
+            if (!File.Exists("config.json"))
+            {
+                cfg.price = 1000;
+                cfg.key = "";
+                cfg.discount = 10;
+
+                var mm = Enum.GetValues(typeof(MessageType));
+                foreach (var it in mm)
+                {
+                    cfg.Messages.Add((MessageType)it, true);
+                }
+            }
+
+            cfg = Config.Reload();
+
+
+            if (!String.IsNullOrEmpty(cfg.SteamLogin))
             {
                 //если есть мобильный аутентификатор включаем автоматический прием вещей
                 //если его нет, то узнаем, нужно ли забирать вещи самостоятельно 
                 if (File.Exists("account.maFile"))
                 {
                     accountFileExist = true;
-                    Trades();
                 }
-                else
-                {
-                    Console.WriteLine(("Автоматически получать вещи?"));
-                    var w = Console.ReadLine();
-                    if (w.ToLower() == "y")
-                    {
-                        Trades();
-                    }
-                }
+                autoConfirmTrades = true;
+                //else
+                //{
+                //    Console.WriteLine(("Автоматически получать вещи?"));
+                //    var w = Console.ReadLine();
+                //    if (w.ToLower() == "y")
+                //    {
+                //        tradeWorker.Auth();
+                //        //Trades();
+                //    }
+                //}
             }
             else
             {
-                Console.WriteLine("Заполните configuration.json для автоматического получения вещей");
+                Config.Save(cfg);
+
+                Console.WriteLine("Заполните config.json для автоматического получения вещей");
             }
 
 
@@ -130,7 +96,6 @@ namespace MonoTM2
             UpdateOrdersDelegate = CorrectOrders;
             UpdateNotificationsDelegate = CorrectNotifications;
             QuickOrderAction = QuickOrderF;
-            AcceptMobileOrdersAction = AcceptMobile;
             CheckNotificationsDelegate = CheckNotifications;
 
             CLIENT = new functions();
@@ -147,26 +112,7 @@ namespace MonoTM2
                 Items.Sort(delegate (Itm i1, Itm i2) { return i1.name.CompareTo(i2.name); });
             }
 
-            //загрузка настроек
-            if (!File.Exists("config.json"))
-            {
-                cfg.price = 1000;
-                cfg.key = "";
-                cfg.discount = 10;
 
-                var mm = Enum.GetValues(typeof(MessageType));
-                foreach (var it in mm)
-                {
-                    cfg.Messages.Add((MessageType)it, true);
-                }
-
-                Config.Reload(cfg);
-            }
-            else
-            {
-                cfg = Config.Reload(cfg);
-
-            }
 
             if (cfg.Messages.Count == 0 || cfg.Messages.Count != Enum.GetNames(typeof(MessageType)).Length)
             {
@@ -264,9 +210,8 @@ namespace MonoTM2
                                     WriteMessage("Забрать вещи", MessageType.GetWeapon);
                                     if (autoConfirmTrades)
                                     {
-                                        AcceptTradeAction.Invoke();
+                                        tradeWorker.AcceptTrade(TypeTrade.OUT);
                                     }
-                                    //AcceptTrade.BeginInvoke(null,null);
                                     break;
 
                             }
@@ -291,8 +236,7 @@ namespace MonoTM2
                                 case "3":
                                     WriteMessage("Передать вещи", MessageType.GiveWeapon);
 
-                                    AcceptMobileOrdersAction.Invoke();
-
+                                    tradeWorker.AcceptTrade(TypeTrade.IN);
                                     break;
                             }
 
@@ -614,7 +558,8 @@ namespace MonoTM2
                         {
                             WriteMessage(string.Format("*{3}* {0} куплен за {1} ({2})", tempItem.name, Convert.ToDouble(findItem.l_paid) / 100, tempItem.price, "Список"), MessageType.BuyWeapon);
                             if (autoConfirmTrades)
-                                AcceptTradeAction.Invoke();
+                                tradeWorker.AcceptTrade(TypeTrade.OUT);
+                            // AcceptTradeAction.Invoke();
                         }
                     }
                 }
@@ -658,8 +603,13 @@ namespace MonoTM2
 
             if (autoConfirmTrades)
             {
-                AcceptTradeAction.Invoke();
-                AcceptMobileOrdersAction.Invoke();
+                var info = CLIENT1.CountItemsToTransfer(cfg.key);
+                if (info?.getCount > 0)
+                    tradeWorker.AcceptTrade(TypeTrade.OUT);
+                if (info?.outCount > 0)
+                    tradeWorker.AcceptTrade(TypeTrade.IN);
+                //AcceptTradeAction.Invoke();
+                //AcceptMobileOrdersAction.Invoke();
             }
 
         }
@@ -671,11 +621,6 @@ namespace MonoTM2
         /// <param name="e"></param>
         void PingPongTimer(object sender, ElapsedEventArgs e)
         {
-            /* Console.ForegroundColor = ConsoleColor.DarkMagenta;
-             Console.WriteLine("[{0}] пинг", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00"));
-             Console.ResetColor();*/
-            //выставитьToolStripMenuItem_Click(sender, e);
-
             CLIENT.Ping(cfg.key);
             //
             client.Send("PING");
@@ -686,140 +631,24 @@ namespace MonoTM2
             {
                 var info = CLIENT1.CountItemsToTransfer(cfg.key);
                 if (info?.getCount > 0)
-                    AcceptTradeAction.Invoke();
-                if (info?.outCount > 0)
-                    AcceptMobileOrdersAction.Invoke();
-            }
-
-        }
-
-        /// <summary>
-        /// Функция подтверждение трейдов
-        /// </summary>
-        void AcceptTrades()
-        {
-            // WriteMessage("---AcceptTrades");
-            //lock (tradesIn)
-
-            //WriteMessage("---Заблокировано принятием");
-            try
-            {
-
-                if (tradesIn)
                 {
-                    tradesIn = false;
-
-                    start:
-                    ///проверяем, есть ли трейды, которые нам уже отправили. Если есть, то подтверждаем их
-                    var tr = CLIENT1.MarketTrades(cfg.key);
-                    if (tr != null && tr.trades[0].dir == "out")
-                    {
-                        WriteMessage("Есть трейд", MessageType.Info);
-                        var ans = offerHandler.AcceptTradeOffer(Convert.ToUInt32(tr.trades[0].trade_id), Convert.ToUInt32(tr.trades[0].bot_id), _account.AuthContainer, "1");
-                        if (ans?.TradeId != null)
-                        {
-                            WriteMessage("Обмен принят!", MessageType.Info);
-                            Thread.Sleep(5000);
-                            //Проверить есть ли еще вещи на прием
-                            var trades = CLIENT1.GetTrades(cfg.key);
-
-                            if (trades?.items.Count > 0)
-                                foreach (var it in trades.items)
-                                    if (it.ui_status == "4")
-                                        goto start;
-                        }
-                    }
-                    else
-                    {
-
-                        int b = 0, of = 0;
-
-                        bot:
-                        var bid = CLIENT.GetBotID(cfg.key);
-                        if (bid != null && bid != "0")
-                        {
-                            WriteMessage("Определяем бота", MessageType.Info);
-                            WriteMessage("Получаем трейд", MessageType.Info);
-                            offer:
-                            Thread.Sleep(2000);
-                            var offer = CLIENT.GetOffer(bid, cfg.key);
-                            if (offer != null)
-                            {
-
-                                WriteMessage("Подтверждаем", MessageType.Info);
-                                var ans = offerHandler.AcceptTradeOffer(Convert.ToUInt32(offer.trade), Convert.ToUInt32(offer.botid), _account.AuthContainer, "1");
-                                if (ans?.TradeId != null)
-                                {
-                                    WriteMessage("Обмен принят!", MessageType.Info);
-                                    Thread.Sleep(10000);
-                                    //Проверить есть ли еще вещи на прием
-
-                                    var trades = CLIENT1.GetTrades(cfg.key);
-
-                                    if (trades?.items.Count > 0)
-                                        foreach (var it in trades.items)
-                                            if (it.ui_status == "4")
-                                                goto start;
-                                }
-                                else
-                                    WriteMessage("Обмен не принят", MessageType.Info);
-
-                            }
-                            else
-                            {
-                                WriteMessage("Не дает оффер", MessageType.Info);
-                                tr = CLIENT1.MarketTrades(cfg.key);
-                                if (of++ < 2 && tr != null && tr.success && tr.trades.Count > 0)
-                                    goto offer;
-                            }
-                        }
-                        else
-                        {
-                            if (b++ < 2) goto bot;
-                        }
-                    }
-                    //обновляем инвентарь
-                    CLIENT1.UpdateInvent(cfg.key);
+                    tradeWorker.AcceptTrade(TypeTrade.OUT);
+                }
+                if (info?.outCount > 0)
+                {
+                    tradeWorker.AcceptTrade(TypeTrade.IN);
                 }
             }
 
-            catch (Exception exx)
-            {
-                //Console.WriteLine(exx.GetBaseException() + "\n\n" + exx.InnerException + "\n\n" + exx.Source + "\n\n" + exx.StackTrace + "\n\n" + exx.TargetSite);
-                StreamWriter sw = new StreamWriter("log.log", true);
-                sw.WriteLineAsync("------------"
-                    + string.Format("[{0}] ", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00:") + DateTime.Now.Second.ToString("00")) + "\n1)"
-                    + exx.Data.Keys + "\n2)"
-                    + exx.Data.Values + "\n3)"
-                    + exx.GetBaseException() + "\n4)"
-                    + exx.InnerException + "\n5)"
-                    + exx.Source + "\n6)"
-                    + exx.StackTrace + "\n7)"
-                    + exx.TargetSite + "\n8)"
-                    + exx.Data
-                    + "\n------------\n");
-                sw.Close();
-            }
-            finally
-            {
-                tradesIn = true;
-            }
-
-            // }
-            //WriteMessage("---Разблокировано принятием");
         }
+
 
         /// <summary>
         /// подтвердить трейд
         /// </summary>
         public void ConfirmTrade()
         {
-            if (IAcceptInTradesResult == null)
-                IAcceptInTradesResult = AcceptTradeAction.BeginInvoke(null, null);
-            else
-                if (IAcceptInTradesResult.IsCompleted)
-                IAcceptInTradesResult = AcceptTradeAction.BeginInvoke(null, null);
-
+            tradeWorker.AcceptTrade(TypeTrade.OUT);
         }
 
         /// <summary>
@@ -929,11 +758,7 @@ namespace MonoTM2
         }
         public void AcceptMobileOrdersFunc()
         {
-            if (IAcceptOutTradesResult == null)
-                IAcceptOutTradesResult = AcceptMobileOrdersAction.BeginInvoke(null, null);
-            else
-                if (IAcceptOutTradesResult.IsCompleted)
-                IAcceptOutTradesResult = AcceptMobileOrdersAction.BeginInvoke(null, null);
+            tradeWorker.AcceptTrade(TypeTrade.IN);
         }
         /// <summary>
         /// Включено ли автоподтверждение трейдов или нет
@@ -950,10 +775,12 @@ namespace MonoTM2
                 autoConfirmTrades = false;
                 return;
             }
-
-            Trades();
-            AcceptTradeAction.Invoke();
-
+            else
+            {
+                autoConfirmTrades = true;
+            }
+            tradeWorker.Auth();
+            tradeWorker.AcceptTrade(TypeTrade.OUT);
         }
 
         /// <summary>
@@ -1199,8 +1026,8 @@ namespace MonoTM2
 
         private void SteamAuthLogin()
         {
-            _config = ConfigHandler.Reload(_config);
-            var authLogin = new UserLogin(_config.Username, _config.Password);
+
+            var authLogin = new UserLogin(cfg.SteamLogin, cfg.SteamPassword);
             LoginResult result;
             do
             {
@@ -1294,102 +1121,6 @@ namespace MonoTM2
                 Console.WriteLine("File not exist!");
             }
         }
-
-        private void AcceptConfirmations(SteamGuardAccount sgAccount)
-        {
-            sgAccount.Session.SteamLogin = _account.FindCookieByName("steamlogin").Value;
-            sgAccount.Session.SteamLoginSecure = _account.FindCookieByName("steamloginsecure").Value;
-
-            sgAccount.AcceptConfirmation(new Confirmation() { });
-            foreach (Confirmation confirmation in sgAccount.FetchConfirmations())
-            {
-                WriteMessage("Подтверждаем", MessageType.Info);
-                if (sgAccount.AcceptConfirmation(confirmation))
-                {
-                    WriteMessage("Подтвержден", MessageType.Info);
-                }
-            }
-        }
-
-        private void AcceptMobile()
-        {
-            // WriteMessage("---AcceptMobile");
-            try
-            {
-                if (accountFileExist)
-                {
-                    //  lock (tradesOut)
-                    if (tradesOut)
-                    {
-                        tradesOut = false;
-                        // WriteMessage("---Заблокировано выводом");
-                        if (autoConfirmTrades == true)
-                        {
-                            var sgAccount = JsonConvert.DeserializeObject<SteamGuardAccount>(File.ReadAllText("account.maFile"));
-                            AcceptConfirmations(sgAccount);
-                        }
-
-
-                        var offer = CLIENT.GetOffer("1", cfg.key, "in");
-                        if (offer != null)
-                        {
-                            Trade:
-                            WriteMessage("Запрос ордера", MessageType.Info);
-                            WriteMessage("Ордер получен", MessageType.Info);
-                            try
-                            {
-                                var ans = offerHandler.AcceptTradeOffer(Convert.ToUInt32(offer.trade), Convert.ToUInt32(offer.botid), _account.AuthContainer, "1");
-
-                            }
-                            catch (Exception exx)
-                            {
-                                StreamWriter sw = new StreamWriter("log.log", true);
-                                sw.WriteLineAsync("------------"
-                                    + string.Format("[{0}] ", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00:") + DateTime.Now.Second.ToString("00")) + "\n1)"
-                                    + exx.Data.Keys + "\n2)"
-                                    + exx.Data.Values + "\n3)"
-                                    + exx.GetBaseException() + "\n4)"
-                                    + exx.InnerException + "\n5)"
-                                    + exx.Source + "\n6)"
-                                    + exx.StackTrace + "\n7)"
-                                    + exx.TargetSite + "\n8)"
-                                    + exx.Data
-                                    + "\n------------\n");
-                                sw.Close();
-                            }
-                            finally
-                            {
-                                if (autoConfirmTrades == true)
-                                {
-                                    var sgAccount = JsonConvert.DeserializeObject<SteamGuardAccount>(File.ReadAllText("account.maFile"));
-                                    AcceptConfirmations(sgAccount);
-                                }
-                            }
-
-                            Thread.Sleep(10000);
-                            offer = CLIENT.GetOffer("1", cfg.key, "in");
-                            if (offer != null)
-                            {
-                                WriteMessage("Есть предметы на передачу!", MessageType.Info);
-                                goto Trade;
-                            }
-                        }
-
-                    }
-                    // WriteMessage("---Разблокировано выводом");
-                }
-            }
-            finally
-            {
-                tradesOut = true;
-            }
-        }
-
-        public void ReloadBool()
-        {
-            tradesIn = true;
-            tradesOut = true;
-        }
         //
 
         /// <summary>
@@ -1412,10 +1143,10 @@ namespace MonoTM2
                             i++;
                         }
                     }
-                    if(i!=0)
+                    if (i != 0)
                         WriteMessage($"Добавлено {i} предметов", MessageType.Info);
                 }
-               
+
             }
             catch
             {

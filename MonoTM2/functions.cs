@@ -10,7 +10,7 @@ namespace MonoTM2
     {
         readonly string host = "https://market.csgo.com";
         //поиск вещи
-        public bool Buy(Itm item, string key, int timeout = 200)
+        public bool Buy(Itm item, string key, int timeout = 500)
         {
             int i = 0;
             try
@@ -171,21 +171,13 @@ namespace MonoTM2
         {
             try
             {
-                string resp = Web(host + "/api/ItemRequest/" + o + "/" + bid + "/?key=" + key);
+                string resp = Web(host + "/api/ItemRequest/" + o + "/" + bid + "/?key=" + key, timeout: 15000);
                 Trade tr = JsonConvert.DeserializeObject<Trade>(resp);
                 if (tr.success)
                     return tr;
                 else
                 {
-                    if (tr.error != null && tr.error.ToLower().IndexOf("загрузить") != -1)
-                    {
-                        UpdateInvent(key);
-                        return null;
-                    }
-                    else
-                    {
-                        return null;
-                    }
+                    return null;
                 }
             }
             catch
@@ -198,7 +190,7 @@ namespace MonoTM2
         {
             try
             {
-                string resp = Web(host + "/api/Trades/?key=" + key);
+                string resp = Web(host + "/api/Trades/?key=" + key, timeout: 15000);
                 var trades = JsonConvert.DeserializeObject<List<TradeOffer>>(resp);
                 foreach (var t in trades)
                 {
@@ -235,13 +227,20 @@ namespace MonoTM2
         //Веб запрос
         public static string Web(string server, int timeout = 500)
         {
+
             try
             {
+
                 HttpWebRequest myHttpWebRequest = (HttpWebRequest)HttpWebRequest.Create(server);
-                HttpWebResponse myHttpWebResponse = (HttpWebResponse)myHttpWebRequest.GetResponse();
                 myHttpWebRequest.Timeout = timeout;
-                StreamReader myStreamReader = new StreamReader(myHttpWebResponse.GetResponseStream());
-                return myStreamReader.ReadToEnd();
+                myHttpWebRequest.UserAgent = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/535.2 (KHTML, like Gecko) Chrome/15.0.874.121 Safari/535.2";
+                using (HttpWebResponse myHttpWebResponse = (HttpWebResponse)myHttpWebRequest.GetResponse())
+                {
+                    using (StreamReader myStreamReader = new StreamReader(myHttpWebResponse.GetResponseStream()))
+                    {
+                        return myStreamReader.ReadToEnd();
+                    }
+                }
             }
             catch (WebException e)
             {
@@ -336,11 +335,6 @@ namespace MonoTM2
 
             var status = new { success = false };
             var inf = JsonConvert.DeserializeAnonymousType(answer, status);
-
-            if (!inf.success)
-            {
-                UpdateInvent(key);
-            }
         }
 
         /// <summary>
