@@ -11,7 +11,7 @@ namespace MonoTM2
             //загрузка всех настроек
             bot.Loader();
             //стартуем
-           bot.Start();
+            bot.Start();
 
             Console.WriteLine("Запуск выполнен");
             string Mess = "";
@@ -22,6 +22,9 @@ namespace MonoTM2
                 {
                     switch (Mess.ToLowerInvariant())
                     {
+                        case "c":
+                            Console.Clear();
+                            break;
                         case "accept":
                             bot.AcceptMobileOrdersFunc();
                             break;
@@ -99,7 +102,7 @@ namespace MonoTM2
                             foreach (var y in tempItems)
                             {
                                 var nameList = string.Format("{0,-45}", y.name);
-                                string typeList = Convert.ToString(y.priceCheck).Substring(0,5);
+                                string typeList = Convert.ToString(y.priceCheck).Substring(0, 5);
                                 if (y.profit != 0)
                                 {
                                     Console.WriteLine("[{3}]  {0}\t{1}\t{2}\t{4}", nameList, y.price, y.profit, n++.ToString("00"), typeList);
@@ -138,9 +141,6 @@ namespace MonoTM2
                         case "status":
                             Console.WriteLine(bot.Status());
                             break;
-                        case "r":
-                            bot.ReloadBool();
-                            break;
                         case "sprofit":
                             Console.WriteLine("Введите номер вещи и прибыль через пробел (пример: 2 20).\nДля использования общей прибыли выставить 0");
                             var line = Console.ReadLine();
@@ -157,7 +157,7 @@ namespace MonoTM2
                                 if (id >= bot.GetListItems().Count || id < 0)
                                 {
                                     Console.WriteLine("Номер за пределами списка вещей");
-                                    break;                               
+                                    break;
                                 }
                                 if (profit < 0)
                                 {
