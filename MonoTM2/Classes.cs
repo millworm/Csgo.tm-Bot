@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 /*
  * все закоменченное можно раскомментить
@@ -333,6 +334,97 @@ namespace MonoTM2
         public string i_market_name { get; set; }
         public string n_val { get; set; }
     }
+
+    ///
+    public class MassInfo
+    {
+        [JsonProperty("success")]
+        public bool Success { get; set; }
+
+        [JsonProperty("results")]
+        public List<MassInfoResult> Results { get; set; }
+    }
+
+    public class MassInfoResult
+    {
+        [JsonProperty("classid")]
+        public string Classid { get; set; }
+
+        [JsonProperty("instanceid")]
+        public string Instanceid { get; set; }
+
+        [JsonProperty("sell_offers")]
+        public MassInfoOffers SellOffers { get; set; }
+
+        [JsonProperty("history")]
+        public MassInfoHistory History { get; set; }
+
+        [JsonProperty("buy_offers")]
+        public MassInfoOffers BuyOffers { get; set; }
+
+        [JsonProperty("info")]
+        public Info Info { get; set; }
+    }
+
+    public class MassInfoHistory
+    {
+        [JsonProperty("max")]
+        public uint Max { get; set; }
+
+        [JsonProperty("average")]
+        public uint Average { get; set; }
+
+        [JsonProperty("min")]
+        public uint Min { get; set; }
+
+        [JsonProperty("number")]
+        public uint Number { get; set; }
+
+        [JsonProperty("history")]
+        public List<List<long>> OtherHistory { get; set; }
+
+    }
+
+    public class MassInfoOffers
+    {
+        [JsonProperty("best_offer")]
+        public int BestOffer { get; set; }
+    }
+
+
+    public class MassInfoInfo
+    {
+        [JsonProperty("name")]
+        public string Name { get; set; }
+
+        [JsonProperty("market_name")]
+        public string MarketName { get; set; }
+
+        [JsonProperty("market_hash_name")]
+        public string MarketHashName { get; set; }
+
+        [JsonProperty("mtype")]
+        public string Mtype { get; set; }
+
+        [JsonProperty("quality")]
+        public string Quality { get; set; }
+
+        [JsonProperty("slot")]
+        public string Slot { get; set; }
+
+        [JsonProperty("our_market_instanceid")]
+        public object OurMarketInstanceid { get; set; }
+
+        [JsonProperty("rarity")]
+        public string Rarity { get; set; }
+
+        [JsonProperty("type")]
+        public string Type { get; set; }
+    }
+    ///
+
+
+
     enum MessageType
     {
         Info,

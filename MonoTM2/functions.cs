@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Text;
+
 namespace MonoTM2
 {
 
@@ -225,15 +227,23 @@ namespace MonoTM2
         //
 
         //Веб запрос
-        public static string Web(string server, int timeout = 500)
+        public static string Web(string server, int timeout = 500, string list="")
         {
-
             try
             {
-
                 HttpWebRequest myHttpWebRequest = (HttpWebRequest)HttpWebRequest.Create(server);
                 myHttpWebRequest.Timeout = timeout;
                 myHttpWebRequest.UserAgent = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/535.2 (KHTML, like Gecko) Chrome/15.0.874.121 Safari/535.2";
+                if (list != "")
+                {
+                    myHttpWebRequest.Method = "POST";
+                    var data = Encoding.UTF8.GetBytes("list="+list);
+                    myHttpWebRequest.ContentLength = data.Length;
+                    myHttpWebRequest.ContentType = "application/x-www-form-urlencoded";
+
+                    using (var stream = myHttpWebRequest.GetRequestStream())
+                        stream.Write(data, 0, data.Length);
+                }    
                 using (HttpWebResponse myHttpWebResponse = (HttpWebResponse)myHttpWebRequest.GetResponse())
                 {
                     using (StreamReader myStreamReader = new StreamReader(myHttpWebResponse.GetResponseStream()))
@@ -565,6 +575,53 @@ namespace MonoTM2
                 //var pr = new { success = false, Notifications = new { i_classid = "", i_instanceid ="", n_val="" }, error = "" };
                 var inf = JsonConvert.DeserializeObject<CNotifications>(answer);
                 if (inf.success == true)
+                {
+                    return inf;
+                }
+                else
+                {
+                    return null;
+                }
+
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Вся информация о предметах в одном месте через POST запрос.
+        /// </summary>
+        /// <param name="key">Ключ</param>
+        /// <param name="data">list — classid_instanceid,classid_instanceid,classid_instanceid,classid_instanceid,...</param>
+        /// <param name="sell">
+        /// 0 - Не получать предложения о продаже
+        /// 1 - Получать топ 50 дешевых предложений + свой
+        /// 2 - Получать только 1 самый дешевый оффер о продаже</param>
+        /// <param name="buy">
+        /// 0 - Не получать запросы на покупку (ордера)
+        /// 1 - Получать топ 50 самых высоких запросов на покупку(ордеров) + свой
+        /// 2 - Получать только 1 самый высокий запрос на покупку</param>
+        /// <param name="history">
+        /// 0 - Не получать история торгов по предмету
+        /// 1 - Получить информацию о последних 100 продажах
+        /// 2 - Получить информацию о последних 10 продажах</param>
+        /// <param name="info">
+        /// 0 - Не получать информацию о предмете
+        /// 1 - Получить базовую информацию(название, тип)
+        /// 2 - Получить дополнительно хэш для покупки, ссылку на картинку
+        /// 3 - Получать дополнительно описание предмета и теги из Steam</param>
+        /// <returns>MassInfo</returns>
+        public MassInfo MassInfo(string key, string data, uint sell = 2, uint buy = 0, uint history = 2, uint info = 0 )
+        {
+            try
+            {
+                ///https://market.csgo.com/api/MassInfo/[SELL]/[BUY]/[HISTORY]/[INFO]?key=[your_secret_key]
+                string answer = Web(host + $"/api/MassInfo/{sell}/{buy}/{history}/{info}/?key={key}",timeout: 25000, list:data);
+
+                var inf = JsonConvert.DeserializeObject<MassInfo>(answer);
+                if (inf.Success == true)
                 {
                     return inf;
                 }

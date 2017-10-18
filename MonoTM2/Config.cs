@@ -25,6 +25,8 @@ namespace MonoTM2
         public double PingPongTimerTime { get; set; } = 0.5;
 
         public Dictionary<MessageType, bool> Messages = new Dictionary<MessageType, bool>();
+
+        public bool MassUpdate { get; set; } = false;
         //public Config()
         //{
         //    InitializeAll();
