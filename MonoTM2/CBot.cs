@@ -21,8 +21,8 @@ namespace MonoTM2
         bool autoConfirmTrades, Close, accountFileExist;
 
         //конфиг
-        Config cfg = new Config();
-        TradeWorker tradeWorker = new TradeWorker();
+        Config cfg;
+        TradeWorker tradeWorker;
 
         Thread Find;
         Task Finding;
@@ -89,10 +89,14 @@ namespace MonoTM2
                 Console.WriteLine("Заполните config.json для автоматического получения вещей");
             }
 
+            tradeWorker = new TradeWorker();
 
             CallbackUpdater = new AsyncCallback(CorrectOrdersAndNotifications);
+            if (cfg.MassUpdate)
+                UpdatePriceDelegateAction = MassUpdate;
+            else
+                UpdatePriceDelegateAction = CorrectPrice;
 
-            UpdatePriceDelegateAction = CorrectPrice;
             UpdateOrdersDelegate = CorrectOrders;
             UpdateNotificationsDelegate = CorrectNotifications;
             QuickOrderAction = QuickOrderF;
@@ -390,7 +394,10 @@ namespace MonoTM2
 
             WriteMessage("Скидка " + cfg.discount + " %", MessageType.Info);
 
-            CorrectPrice();
+            if (cfg.MassUpdate)
+                MassUpdate();
+            else
+                CorrectPrice();
             // CorrectOrders();
             CorrectNotifications();
 
@@ -1205,6 +1212,77 @@ namespace MonoTM2
             }
         }
 
+        public void MassUpdate()
+        {
+            try
+            {
+                string data = "";
+                foreach (var itm in Items)
+                {
+                    data += itm.id + ",";
+                }
+                data = data.Remove(data.Length - 1);
+                var ans = CLIENT1.MassInfo(cfg.key, data);
+
+                if (ans?.Success == true)
+                {
+                    foreach (var itm in ans.Results)
+                    {
+                        double Averange, MinPrice, Discount, Cost;
+                        Discount = 1 - Convert.ToDouble(cfg.discount / 100);
+
+                        MinPrice = itm.SellOffers.BestOffer;
+
+                        Averange = itm.History.Average;
+
+                        if (Averange < MinPrice)
+                        {
+                            Cost = Averange;
+                        }
+                        else
+                        {
+                            Cost = MinPrice;
+                        }
+
+                        var id = itm.Classid + "_" + itm.Instanceid;
+                        var FindedItem = Items.Find(item => item.id == id);
+
+                        //если у предмета выставлена персональная прибыль, то используем ее, а не общую
+                        double profit;
+                        if (FindedItem.profit != 0)
+                        {
+                            profit = FindedItem.profit;
+                        }
+                        else
+                        {
+                            profit = cfg.price;
+                        }
+
+                        if (Cost > 20000)
+                        {
+                            FindedItem.price = Math.Round((Cost * Discount - profit * 2) / 100.0, 2);
+                            continue;
+                        }
+                        if (Cost > 10000)
+                        {
+                            FindedItem.price = Math.Round((Cost * Discount - profit) / 100.0, 2);
+                            continue;
+                        }
+                        else
+                        {
+                            FindedItem.price = Math.Round((Cost * Discount - profit) / 100.0, 2);
+                            continue;
+                        }
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                WriteMessage("MassUpdate: " + ex.Message, MessageType.Error);
+            }
+
+        }
 
 
     }
