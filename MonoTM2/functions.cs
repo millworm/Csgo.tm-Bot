@@ -613,7 +613,7 @@ namespace MonoTM2
         /// 2 - Получить дополнительно хэш для покупки, ссылку на картинку
         /// 3 - Получать дополнительно описание предмета и теги из Steam</param>
         /// <returns>MassInfo</returns>
-        public MassInfo MassInfo(string key, string data, uint sell = 2, uint buy = 0, uint history = 2, uint info = 0 )
+        public MassInfo MassInfo(string key, string data, uint sell = 2, uint buy = 0, uint history = 0, uint info = 0 )
         {
             try
             {

@@ -1229,11 +1229,14 @@ namespace MonoTM2
                     foreach (var itm in ans.Results)
                     {
                         double Averange, MinPrice, Discount, Cost;
-                        Discount = 1 - Convert.ToDouble(cfg.discount / 100);
+                        Discount = 1 - Convert.ToDouble(cfg.discount / 100);                        
+
+                        var id = itm.Classid + "_" + itm.Instanceid;
+                        var FindedItem = Items.Find(item => item.id == id);
 
                         MinPrice = itm.SellOffers.BestOffer;
 
-                        Averange = itm.History.Average;
+                        Averange = Convert.ToDouble(CLIENT.GetAverangePrice(FindedItem, cfg.key));
 
                         if (Averange < MinPrice)
                         {
@@ -1243,9 +1246,6 @@ namespace MonoTM2
                         {
                             Cost = MinPrice;
                         }
-
-                        var id = itm.Classid + "_" + itm.Instanceid;
-                        var FindedItem = Items.Find(item => item.id == id);
 
                         //если у предмета выставлена персональная прибыль, то используем ее, а не общую
                         double profit;
