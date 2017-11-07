@@ -13,6 +13,8 @@ using SteamToolkit.Trading;
 using SteamToolkit.Web;
 using SteamAuth;
 using LoginResult = SteamAuth.LoginResult;
+using System.Linq;
+using System.Diagnostics;
 
 namespace MonoTM2
 {
@@ -48,9 +50,7 @@ namespace MonoTM2
             //загрузка настроек
             if (!File.Exists("config.json"))
             {
-                cfg.price = 1000;
-                cfg.key = "";
-                cfg.discount = 10;
+                cfg = new Config();
 
                 var mm = Enum.GetValues(typeof(MessageType));
                 foreach (var it in mm)
@@ -58,8 +58,8 @@ namespace MonoTM2
                     cfg.Messages.Add((MessageType)it, true);
                 }
             }
-
-            cfg = Config.Reload();
+            else
+                cfg = Config.Reload();
 
 
             if (!String.IsNullOrEmpty(cfg.SteamLogin))
@@ -87,6 +87,7 @@ namespace MonoTM2
                 Config.Save(cfg);
 
                 Console.WriteLine("Заполните config.json для автоматического получения вещей");
+				
             }
 
             tradeWorker = new TradeWorker();
@@ -145,7 +146,7 @@ namespace MonoTM2
 
             client = new WebSocket(host);
 
-            string id = "", answer = "", answer1 = "";
+            string id = "", answer = "";
 
             client.OnOpen += (ss, ee) =>
                     WriteMessage(string.Format("Подключение к {0} успешно ", host), MessageType.Info);
@@ -314,7 +315,7 @@ namespace MonoTM2
 
 
                     if (type.type != "newitems_go" && type.type != "webnotify")
-                        Console.WriteLine("Error " + type.type + " " + e.Message + Environment.NewLine + Environment.NewLine + answer1 + Environment.NewLine + Environment.NewLine + answer + Environment.NewLine + Environment.NewLine);
+                        Console.WriteLine("Error " + type.type + " " + e.Message + Environment.NewLine + Environment.NewLine  + Environment.NewLine + Environment.NewLine + answer + Environment.NewLine + Environment.NewLine);
 #endif
                 }
 
@@ -460,7 +461,6 @@ namespace MonoTM2
             {
                 double Averange, MinPrice, Discount, Cost;
                 Discount = 1 - Convert.ToDouble(cfg.discount / 100);
-                int count = 0;
                 foreach (Itm I in Items)
                 {
                     //Если предмет добавлен с уведомлений, то его цену прверяем в списке уведомлений
@@ -550,27 +550,51 @@ namespace MonoTM2
         {
             //получаем список вещей
             var QuickItemsList = CLIENT.QList(cfg.key);
+
             //проходимся по нашему списку элементов
-            foreach (var tempItem in Items)
+            //foreach (var tempItem in Items)
+            //{
+            //    //ищем их быстрой покупке
+            //    var findItem = QuickItemsList.Find(item => item.i_classid + "_" + item.i_instanceid == tempItem.id);
+
+            //    //если нашли, то проверяем цену
+            //    if (findItem != null)
+            //    {
+            //        if (Convert.ToDouble(findItem.l_paid) < tempItem.price * 100)
+            //        {
+            //            //покупаем
+            //            if (CLIENT.QBuy(cfg.key, findItem.ui_id))
+            //            {
+            //                WriteMessage(string.Format("*{3}* {0} куплен за {1} ({2})", tempItem.name, Convert.ToDouble(findItem.l_paid) / 100, tempItem.price, "Список"), MessageType.BuyWeapon);
+            //                if (autoConfirmTrades)
+            //                    tradeWorker.AcceptTrade(TypeTrade.OUT);
+            //                // AcceptTradeAction.Invoke();
+            //            }
+            //        }
+            //    }
+            //}
+
+            var l = QuickItemsList.Where(
+                q => Items.Any(
+                    i => i.id == q.i_classid + "_" + q.i_instanceid
+                        && Convert.ToDouble(q.l_paid) < i.price * 100
+                  )
+                   ).ToList();
+
+            if (l?.Count > 0)
             {
-                //ищем их быстрой покупке
-                var findItem = QuickItemsList.Find(item => item.i_classid + "_" + item.i_instanceid == tempItem.id);
-                //если нашли, то проверяем цену
-                if (findItem != null)
+                l.ForEach(x =>
                 {
-                    if (Convert.ToDouble(findItem.l_paid) < tempItem.price * 100)
+                    if (CLIENT.QBuy(cfg.key, x.ui_id))
                     {
-                        //покупаем
-                        if (CLIENT.QBuy(cfg.key, findItem.ui_id))
-                        {
-                            WriteMessage(string.Format("*{3}* {0} куплен за {1} ({2})", tempItem.name, Convert.ToDouble(findItem.l_paid) / 100, tempItem.price, "Список"), MessageType.BuyWeapon);
-                            if (autoConfirmTrades)
-                                tradeWorker.AcceptTrade(TypeTrade.OUT);
-                            // AcceptTradeAction.Invoke();
-                        }
+                        WriteMessage("*Список* Куплен предмет", MessageType.BuyWeapon);
+                        if (autoConfirmTrades)
+                            tradeWorker.AcceptTrade(TypeTrade.OUT);
+                        // AcceptTradeAction.Invoke();
                     }
-                }
+                });
             }
+
         }
 
         /// <summary>
@@ -767,6 +791,10 @@ namespace MonoTM2
         {
             tradeWorker.AcceptTrade(TypeTrade.IN);
         }
+        public void AcceptMobileOrders()
+        {
+            tradeWorker.AcceptTrade(TypeTrade.MOBILE);
+        }
         /// <summary>
         /// Включено ли автоподтверждение трейдов или нет
         /// </summary>
@@ -887,7 +915,7 @@ namespace MonoTM2
 #endif
                     }
                 }
-                WriteMessage("Обновлены уведомления", MessageType.Info);
+                WriteMessage("Обновлены уведомления", MessageType.Timer);
             }
             catch (Exception ex)
             {
@@ -1229,7 +1257,7 @@ namespace MonoTM2
                     foreach (var itm in ans.Results)
                     {
                         double Averange, MinPrice, Discount, Cost;
-                        Discount = 1 - Convert.ToDouble(cfg.discount / 100);                        
+                        Discount = 1 - Convert.ToDouble(cfg.discount / 100);
 
                         var id = itm.Classid + "_" + itm.Instanceid;
                         var FindedItem = Items.Find(item => item.id == id);
