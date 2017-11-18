@@ -6,7 +6,9 @@
 
 Необходимые библиотеки для работы:<br>
    <a href="https://github.com/millworm/SteamToolkit">SteamToolKit</a><br>
-   <a href="https://github.com/geel9/SteamAuth">SteamAuth</a>
+   <a href="https://github.com/geel9/SteamAuth">SteamAuth</a>  
    websocket-sharp
    
 P.s. Бот может самостоятельно принимать(если заполнить config.json) и передавать вещи, если имеется maFile. для автоматической авторизации необходимо использовать SteamToolkit из моего репозитория
+
+<a href="https://github.com/millworm/Csgo.tm-Bot/wiki">Подробнее в Wiki</a>
