@@ -238,6 +238,7 @@ namespace MonoTM2
                     Console.WriteLine(tty.Message);
                 }
             }
+            bot.Closing();
         }
 
     }
