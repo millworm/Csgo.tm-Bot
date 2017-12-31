@@ -28,6 +28,9 @@ namespace MonoTM2
                         case "accept":
                             bot.AcceptMobileOrdersFunc();
                             break;
+                        case "acceptmobile":
+                            bot.AcceptMobileOrders();
+                            break;
                         //привязка мобильного приложения 
                         case "mobile":
                             bot.CreateAuth();

@@ -18,7 +18,7 @@ using System.Diagnostics;
 
 namespace MonoTM2
 {
-    public class CBot
+    public class CBot:IDisposable
     {
         bool autoConfirmTrades, Close, accountFileExist;
 
@@ -45,7 +45,6 @@ namespace MonoTM2
 
         public void Loader()
         {
-
             // AcceptTradeAction = AcceptTrades;
             //загрузка настроек
             if (!File.Exists("config.json"))
@@ -60,7 +59,6 @@ namespace MonoTM2
             }
             else
                 cfg = Config.Reload();
-
 
             if (!String.IsNullOrEmpty(cfg.SteamLogin))
             {
@@ -117,8 +115,6 @@ namespace MonoTM2
                 Items.Sort(delegate (Itm i1, Itm i2) { return i1.name.CompareTo(i2.name); });
             }
 
-
-
             if (cfg.Messages.Count == 0 || cfg.Messages.Count != Enum.GetNames(typeof(MessageType)).Length)
             {
                 var mm = Enum.GetValues(typeof(MessageType));
@@ -132,10 +128,7 @@ namespace MonoTM2
                 }
 
                 Config.Save(cfg);
-
             }
-
-
 
             //таймер обновления цен
             UpdatePriceTimer.Elapsed += new ElapsedEventHandler(PriceCorrectTimer);
@@ -198,7 +191,6 @@ namespace MonoTM2
                             {
                                 WriteMessage(string.Format("*webnotify* Не успел купить {0} выставлен за {1} ({2})", ItemInListWeb.name, ansWeb.data.price, ItemInListWeb.price), MessageType.Socket);
                             }
-
                             //}
                             break;
                         case "itemstatus_go":
@@ -218,7 +210,6 @@ namespace MonoTM2
                                         tradeWorker.AcceptTrade(TypeTrade.OUT);
                                     }
                                     break;
-
                             }
                             break;
                         case "itemout_new_go":
@@ -277,8 +268,6 @@ namespace MonoTM2
                                 {
                                     WriteMessage(string.Format("*сокеты* Не успел купить {0} выставлен за {1} ({2})", ItemInList.name, t.data.ui_price, ItemInList.price), MessageType.Socket);
                                 }
-
-
                             }
                             break;
                             //case "history_go":
@@ -302,11 +291,7 @@ namespace MonoTM2
                             //#endif
                             //                            WriteMessage(string.Format("Сообщение: \n\r{0}", ee.Data));
                             //                            break;
-
                     }
-
-
-
                 }
                 catch (Exception e)
                 {
@@ -318,7 +303,6 @@ namespace MonoTM2
                         Console.WriteLine("Error " + type.type + " " + e.Message + Environment.NewLine + Environment.NewLine  + Environment.NewLine + Environment.NewLine + answer + Environment.NewLine + Environment.NewLine);
 #endif
                 }
-
             };
 
             client.OnClose += (ss, ee) =>
@@ -329,9 +313,6 @@ namespace MonoTM2
                     SocketsAuth();
                 }
             };
-
-
-
         }
 
         /// <summary>
@@ -350,11 +331,7 @@ namespace MonoTM2
             }
             else
                 Console.WriteLine(t.error);
-
         }
-
-
-
 
         /// <summary>
         /// Поток проходящий вещи
@@ -424,7 +401,6 @@ namespace MonoTM2
             UpdatePriceTimer.Enabled = true;
             pinPongTimer.Enabled = true;
             WriteMessage("Таймеры включены", MessageType.Info);
-
         }
 
         /// <summary>
@@ -456,7 +432,6 @@ namespace MonoTM2
         /// </summary>
         void CorrectPrice()
         {
-
             try
             {
                 double Averange, MinPrice, Discount, Cost;
@@ -539,8 +514,6 @@ namespace MonoTM2
             {
                 WriteMessage(string.Format("[CorrectPrice] {0}", ex.Message), MessageType.Error);
             }
-
-
         }
 
         /// <summary>
@@ -576,23 +549,27 @@ namespace MonoTM2
 
             var l = QuickItemsList.Where(
                 q => Items.Any(
-                    i => i.id == q.i_classid + "_" + q.i_instanceid
-                        && Convert.ToDouble(q.l_paid) < i.price * 100
-                  )
-                   ).ToList();
+                    i => i
+						.id == q.i_classid + "_" + q.i_instanceid && 
+						Convert.ToDouble(q.l_paid) < i.price * 100))
+			.ToList();
 
             if (l?.Count > 0)
             {
+                int i = 0;
                 l.ForEach(x =>
                 {
                     if (CLIENT.QBuy(cfg.key, x.ui_id))
                     {
-                        WriteMessage("*Список* Куплен предмет", MessageType.BuyWeapon);
-                        if (autoConfirmTrades)
-                            tradeWorker.AcceptTrade(TypeTrade.OUT);
-                        // AcceptTradeAction.Invoke();
+                        i++;
                     }
                 });
+                if (i != 0)
+                {
+                    WriteMessage("*Список* Куплен предмет", MessageType.BuyWeapon);
+                    if (autoConfirmTrades)
+                        tradeWorker.AcceptTrade(TypeTrade.OUT);
+                }
             }
 
         }
@@ -642,7 +619,6 @@ namespace MonoTM2
                 //AcceptTradeAction.Invoke();
                 //AcceptMobileOrdersAction.Invoke();
             }
-
         }
 
         /// <summary>
@@ -670,7 +646,6 @@ namespace MonoTM2
                     tradeWorker.AcceptTrade(TypeTrade.IN);
                 }
             }
-
         }
 
 
@@ -688,7 +663,6 @@ namespace MonoTM2
         /// <param name="link">ссылка на страницу с предметом</param>
         public void AddItem(string link, int _price = 0, PriceCheck _check = PriceCheck.Price)
         {
-
             var itm = new Itm { link = link, price = _price, priceCheck = _check };
 
             itm.hash = CLIENT.GetHash(itm, cfg.key);
@@ -864,36 +838,6 @@ namespace MonoTM2
                 CheckNotificationsDelegate.Invoke();
             }
         }
-        /// <summary>
-        /// Удалить все ордеры и оповещение
-        /// </summary>
-        public void Closing()
-        {
-            Close = true;
-
-
-            UpdatePriceTimer.Stop();
-            pinPongTimer.Stop();
-
-            UpdatePriceTimer.Dispose();
-            pinPongTimer.Dispose();
-
-
-            client.Close();
-
-            // Finding.Wait();
-            // Finding.Dispose();
-
-            CLIENT.DeleteAllOrders(cfg.key);
-
-            foreach (Itm I in Items)
-            {
-                CLIENT.Notification(I, cfg.key, 1);
-                Thread.Sleep(cfg.Itimer);
-            }
-
-            CLIENT.GoOffline(cfg.key);
-        }
 
         /// <summary>
         /// Обновление уведомлений
@@ -919,9 +863,7 @@ namespace MonoTM2
             }
             catch (Exception ex)
             {
-
                 WriteMessage(string.Format("[CorrectNotifications] {0}", ex.Message), MessageType.Error);
-
             }
         }
 
@@ -1032,8 +974,6 @@ namespace MonoTM2
                     }
                     break;
             }
-
-
         }
 
         public string Status()
@@ -1061,7 +1001,6 @@ namespace MonoTM2
 
         private void SteamAuthLogin()
         {
-
             var authLogin = new UserLogin(cfg.SteamLogin, cfg.SteamPassword);
             LoginResult result;
             do
@@ -1181,11 +1120,9 @@ namespace MonoTM2
                     if (i != 0)
                         WriteMessage($"Добавлено {i} предметов", MessageType.Info);
                 }
-
             }
             catch
             {
-
             }
         }
 
@@ -1309,9 +1246,32 @@ namespace MonoTM2
             {
                 WriteMessage("MassUpdate: " + ex.Message, MessageType.Error);
             }
-
         }
 
+		public void Dispose()
+		{
+			Close = true;
 
-    }
+			UpdatePriceTimer.Stop();
+			pinPongTimer.Stop();
+
+			UpdatePriceTimer.Dispose();
+			pinPongTimer.Dispose();
+
+			client.Close();
+
+			// Finding.Wait();
+			// Finding.Dispose();
+
+			CLIENT.DeleteAllOrders(cfg.key);
+
+			foreach (Itm I in Items)
+			{
+				CLIENT.Notification(I, cfg.key, 1);
+				Thread.Sleep(cfg.Itimer);
+			}
+
+			CLIENT.GoOffline(cfg.key);
+		}
+	}
 }

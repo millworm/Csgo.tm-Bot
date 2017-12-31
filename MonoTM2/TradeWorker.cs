@@ -1,26 +1,21 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
-using System.Threading.Tasks;
-using System.Timers;
-using WebSocketSharp;
-using SteamToolkit.Configuration;
 using SteamToolkit.Trading;
 using SteamToolkit.Web;
 using SteamAuth;
 
 namespace MonoTM2
 {
-    class TradeWorker
+	class TradeWorker
     {
         IAsyncResult IIncomingTradeResult, IOutgoingTradeResult;
         delegate void TradeDelegate();
 
         TradeDelegate IncomingTradeDelegate, OutgoingTradeDelegate;
 
+        long _timeLastLogin;
         Account _account;
         readonly Web Web = new Web(new SteamWebRequestHandler());
         Config _config;
@@ -47,7 +42,7 @@ namespace MonoTM2
                 _mobileAccount = JsonConvert.DeserializeObject<SteamGuardAccount>(File.ReadAllText("account.maFile"));
             }
 
-            if (System.IO.File.Exists("config.json"))
+            if (File.Exists("config.json"))
             {
                 _config = Config.Reload();
                 if (!string.IsNullOrEmpty(_config.SteamLogin) && !string.IsNullOrEmpty(_config.SteamPassword))
@@ -68,7 +63,7 @@ namespace MonoTM2
                     if (IIncomingTradeResult == null || IIncomingTradeResult.IsCompleted == true)
                     {
                         IIncomingTradeResult = IncomingTradeDelegate.BeginInvoke(null, null);
-                        IncomingTradeDelegate.EndInvoke(IIncomingTradeResult);                        
+                        IncomingTradeDelegate.EndInvoke(IIncomingTradeResult);
                     }
                     break;
                 case TypeTrade.OUT:
@@ -137,7 +132,6 @@ namespace MonoTM2
                 Console.WriteLine(new string('-', 50));
                 Console.WriteLine($"Message:{ex.Message}\nTarget:{ex.StackTrace}");
                 Console.WriteLine(new string('-', 50));
-
             }
         }
 
@@ -161,7 +155,7 @@ namespace MonoTM2
                             {
                                 var res = AcceptTrade(Convert.ToUInt32(trade.trade_id), Convert.ToUInt32(trade.bot_id));
                                 Thread.Sleep(2000);
-                                
+
                                 AcceptConfirmations();
                             }
                         }
@@ -177,7 +171,6 @@ namespace MonoTM2
                             //Подтверждаем его в стиме
                             Console.WriteLine("Подтверждаем");
 
-
                             var res = AcceptTrade(Convert.ToUInt32(offer.trade), Convert.ToUInt32(offer.botid));
                             Thread.Sleep(2000);
 
@@ -192,8 +185,6 @@ namespace MonoTM2
                 Console.WriteLine(new string('-', 50));
                 Console.WriteLine($"Message:{ex.Message}\nTarget:{ex.StackTrace}");
                 Console.WriteLine(new string('-', 50));
-                AcceptConfirmations();
-
             }
         }
 
@@ -210,7 +201,6 @@ namespace MonoTM2
             {
                 marketHandler.EligibilityCheck(_account.SteamId, _account.AuthContainer);
 
-
                 var answer = offerHandler.AcceptTradeOffer(trade_id, bot_id, _account.AuthContainer, "1");
                 if (answer?.TradeId != null)
                 {
@@ -218,16 +208,21 @@ namespace MonoTM2
                 }
                 return false;
             }
-            
-            catch(NullReferenceException)
+
+            catch (NullReferenceException)
             {
-                Console.WriteLine("Переавторизовываемся");
-                Auth();
+                var nowTime = DateTimeOffset.Now.ToUnixTimeSeconds();
+                if (nowTime - _timeLastLogin > _config.SteamTimeOutRelogin)
+                {
+                    Console.WriteLine("Переавторизовываемся");
+                    Auth();
+                }
                 return false;
+
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Console.WriteLine(new string('-',50));
+                Console.WriteLine(new string('-', 50));
                 Console.WriteLine($"Message:{ex.Message}\nTarget:{ex.StackTrace}");
                 Console.WriteLine(new string('-', 50));
                 return false;
@@ -250,6 +245,8 @@ namespace MonoTM2
                 }
 
                 Console.WriteLine("Авторизован!");
+                
+                _timeLastLogin = DateTimeOffset.Now.ToUnixTimeSeconds();
 
                 offerHandler = new EconServiceHandler("");
                 marketHandler = new MarketHandler();
@@ -267,6 +264,32 @@ namespace MonoTM2
         /// Подтверждение в мобильном приложении
         /// </summary>
         /// <param name="sgAccount"></param>
+        void AcceptConfirmations(string nick)
+        {
+            try
+            {
+                _mobileAccount.Session.SteamLogin = _account.FindCookieByName("steamlogin").Value;
+                _mobileAccount.Session.SteamLoginSecure = _account.FindCookieByName("steamloginsecure").Value;
+
+                _mobileAccount.AcceptConfirmation(new Confirmation() { });
+                foreach (Confirmation confirmation in _mobileAccount.FetchConfirmations())
+                {
+                    //Подтверждение трейдов не с маркета
+
+                   // if (confirmation.Description.ToLower().Contains(nick.ToLower()))
+                        if (_mobileAccount.AcceptConfirmation(confirmation))
+                        {
+                            Console.WriteLine("Подтвержден в приложении");
+                        }
+                }
+            }
+            catch
+            {
+
+            }
+        }
+
+        //Подтверждение трейдов не с маркета
         void AcceptConfirmations()
         {
             try
@@ -298,3 +321,4 @@ namespace MonoTM2
         IN, OUT, MOBILE
     }
 }
+

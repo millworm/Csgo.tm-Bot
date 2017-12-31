@@ -56,11 +56,14 @@ namespace MonoTM2
             }
 
         }
-        //
-        //получить список выщей на продаже
-        public Trades GetTrades(string key)
-        {
 
+		/// <summary>
+		/// получить список выщей на продаже
+		/// </summary>
+		/// <param name="key"></param>
+		/// <returns>Trades</returns>
+		public Trades GetTrades(string key)
+        {
             try
             {
                 string resp = Web(host + "/api/Trades/?key=" + key);
@@ -74,14 +77,15 @@ namespace MonoTM2
                 return new Trades();
             }
         }
-        //Получить hash предмета
+
+
         /// <summary>
         /// Получает хеш предмета и заполняет название
         /// </summary>
         /// <param name="item">предмет для которого нужно получить хеш и заполнить название</param>
         /// <param name="key">Api key</param>
         /// <param name="lang">en,ru</param>
-        /// <returns></returns>
+        /// <returns>string hash</returns>
         public string GetHash(Itm item, string key, string lang = "en")
         {
             string pattern = "[0-9]{1,15}[-]{1}[0-9]{1,15}";
@@ -96,9 +100,11 @@ namespace MonoTM2
             item.hash = inf.hash;
             return inf.hash;
         }
-        //
-        //Запрос мин. цены
-        public string GetMinPrice(Itm item, string key)
+
+		/// <summary>
+		/// Запрос мин. цены
+		/// </summary>
+		public string GetMinPrice(Itm item, string key)
         {
             string resp = Web(host + "/api/BestSellOffer/" + item.id + "/?key=" + key);
 
@@ -113,9 +119,11 @@ namespace MonoTM2
                 return "-1";
             }
         }
-        //
-        //Запрос средней цены
-        public string GetAverangePrice(Itm item, string key)
+
+		/// <summary>
+		/// Запрос средней цены
+		/// </summary>
+		public string GetAverangePrice(Itm item, string key)
         {
             string resp = Web(host + "/api/ItemHistory/" + item.id + "/?key=" + key);
             var pr = new { success = "", average = "" };
@@ -129,9 +137,11 @@ namespace MonoTM2
                 return "0";
             }
         }
-        //
-        //Запрос последней в истории цены
-        public string GetLastPrice(Itm item, string key)
+
+		/// <summary>
+		/// Запрос последней в истории цены
+		/// </summary>
+		public string GetLastPrice(Itm item, string key)
         {
             string resp = Web(host + "/api/ItemHistory/" + item.id + "/?key=" + key);
             var pr = new { success = "", average = "", history = new[] { new { l_price = "" } }, error = "" };
@@ -145,8 +155,11 @@ namespace MonoTM2
                 return "0";
             }
         }
-        //Запрос баланса
-        public int GetMoney(string key)
+
+		/// <summary>
+		/// Запрос баланса
+		/// </summary>
+		public int GetMoney(string key)
         {
             try
             {
@@ -168,8 +181,14 @@ namespace MonoTM2
             }
         }
 
-        ///Запрос оффера
-        public Trade GetOffer(string bid, string key, string o = "out")
+		/// <summary>
+		/// Запрос оффера
+		/// </summary>
+		/// <param name="bid"></param>
+		/// <param name="key"></param>
+		/// <param name="o"></param>
+		/// <returns></returns>
+		public Trade GetOffer(string bid, string key, string o = "out")
         {
             try
             {
@@ -179,7 +198,18 @@ namespace MonoTM2
                     return tr;
                 else
                 {
-                    return null;
+                    //Если трейд не получен, то смотрим ошибку. 
+                    //Если ошибка в обновлении инвентаря, то обновляем
+                    if (tr.error?.ToLower().IndexOf("загрузить") != -1)
+                    {
+                        Console.WriteLine("Не удалось загрузить инвентарь.\nОбновляем");
+                        UpdateInvent(key);                        
+                        return null;
+                    }
+                    else
+                    {
+                        return null;
+                    }
                 }
             }
             catch
@@ -187,7 +217,10 @@ namespace MonoTM2
                 return null;
             }
         }
-        //
+
+        /// <summary>
+		/// Запросить id бота
+		/// </summary>
         public string GetBotID(string key)
         {
             try
@@ -209,7 +242,11 @@ namespace MonoTM2
                 return "0";
             }
         }
-        //Пинг
+
+        /// <summary>
+		/// Отослать уведомление сайту об онлайне
+		/// </summary>
+		/// <param name="key"></param>
         public void Ping(string key)
         {
             Web(host + "/api/PingPong/?key=" + key);
@@ -270,8 +307,10 @@ namespace MonoTM2
         }
 
 
-        //получения списка быстрых покупок
-        public List<QItems> QList(string key)
+		/// <summary>
+		/// Получения списка быстрых покупок
+		/// </summary>
+		public List<QItems> QList(string key)
         {
             try
             {
@@ -292,7 +331,12 @@ namespace MonoTM2
             }
         }
 
-        //быстрая покупка
+        /// <summary>
+		/// Купить предмет из списка быстрых покупок
+		/// </summary>
+		/// <param name="key">Ключ</param>
+		/// <param name="id">Id предмета</param>
+		/// <returns>True - покупка удалась; False - покупку не удалось совершить</returns>
         public bool QBuy(string key, string id)
         {
             try
@@ -315,8 +359,10 @@ namespace MonoTM2
             }
         }
 
-        //получить список уже отправленных трейдов
-        public MarketTrades MarketTrades(string key)
+		/// <summary>
+		/// Список отправленных маркетов трейдов
+		/// </summary>
+		public MarketTrades MarketTrades(string key)
         {
             try
             {
@@ -338,8 +384,10 @@ namespace MonoTM2
             }
         }
 
-        //обновить инвентарь
-        public void UpdateInvent(string key)
+		/// <summary>
+		/// Обновить инвентарь
+		/// </summary>
+		public void UpdateInvent(string key)
         {
             string answer = Web(host + "/api/UpdateInventory/?key=" + key);
 
@@ -378,6 +426,9 @@ namespace MonoTM2
             }
         }
 
+		/// <summary>
+		/// Добавление ордера на покупку
+		/// </summary>
         public string ProcessOrder(Itm item, string key)
         {
             try
@@ -394,18 +445,19 @@ namespace MonoTM2
                 {
                     return inf.error;
                 }
-
             }
             catch (Exception ex)
             {
                 return ex.Message;
             }
         }
+
         /// <summary>
         /// Подписка на уведомления в сокетах на выбранные предметы
         /// </summary>
         /// <param name="item">Предмет</param>
         /// <param name="key">api ключ</param>
+        /// <param name="price">1 если хотим удалить уведомление</param>
         /// <returns>возвращает строку true, если все прошло без ошибок, иначе текст ошибки</returns>
         public string Notification(Itm item, string key, int price = 0)
         {
@@ -415,16 +467,16 @@ namespace MonoTM2
                 string answer;
                 if (price == 0)
                 {
-                    answer = Web(host + string.Format("/api/UpdateNotification/{0}/{1}/?key={2}", item.id.Replace('_', '/'), item.price * 100, key));
+                    answer = Web(host + $"/api/UpdateNotification/{item.id.Replace('_', '/')}/{item.price * 100}/?key={key}");
                 }
                 else
                 {
-                    answer = Web(host + string.Format("/api/UpdateNotification/{0}/{1}/?key={2}", item.id.Replace('_', '/'), 0, key));
+                    answer = Web(host + $"/api/UpdateNotification/{item.id.Replace('_', '/')}/0/?key={key}");
                 }
 
                 var pr = new { success = false, error = "" };
                 var inf = JsonConvert.DeserializeAnonymousType(answer, pr);
-                if (inf.success == true)
+                if(inf.success)
                 {
                     return inf.success.ToString();
                 }
@@ -444,7 +496,10 @@ namespace MonoTM2
         /// Запросить скидку
         /// </summary>
         /// <param name="key"></param>
-        /// <returns>Если не было ошибок - скидку; если были, то значения 10.01 - 10.03</returns>
+        /// <returns>Если не было ошибок - скидку; если были, то значения: 
+		/// 10.01 - Bad key
+		/// 10.02 - Exception
+		/// 10.03 - Иная ошибка</returns>
         public double GetDiscounts(string key)
         {
             try
@@ -454,7 +509,7 @@ namespace MonoTM2
 
                 var pr = new { success = false, discounts = new { sell_fee = "" }, error = "" };
                 var inf = JsonConvert.DeserializeAnonymousType(answer, pr);
-                if (inf.success == true)
+                if (inf.success)
                 {
                     return Convert.ToDouble(inf.discounts.sell_fee.Replace("%", ""), System.Globalization.CultureInfo.InvariantCulture);
                 }
@@ -490,10 +545,10 @@ namespace MonoTM2
                 DateTime startDay = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 0, 0, 1);
                 DateTime endDay = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 23, 59, 59);
                 //https://market.csgo.com/api/OperationHistory/[start_time]/[end_time]/?key=[your_secret_key]
-                string answer = Web(host + string.Format("/api/OperationHistory/{0}/{1}/?key={2}", (int)startDay.Subtract(new DateTime(1970, 1, 1)).TotalSeconds, (int)endDay.Subtract(new DateTime(1970, 1, 1)).TotalSeconds, key));
+                var answer = Web(host + $"/api/OperationHistory/{(int)startDay.Subtract(new DateTime(1970, 1, 1)).TotalSeconds}/{(int)endDay.Subtract(new DateTime(1970, 1, 1)).TotalSeconds}/?key={key}");
                 var pr = new { success = false, history = new[] { new { h_event = "", recieved = "", stage = "" } } };
                 var inf = JsonConvert.DeserializeAnonymousType(answer, pr);
-                if (inf.success == true && inf.history != null)
+                if (inf.success && inf.history != null)
                 {
                     foreach (var i in inf.history)
                     {
@@ -520,6 +575,9 @@ namespace MonoTM2
             }
         }
 
+		/// <summary>
+		/// Уйти офлайн
+		/// </summary>
         public void GoOffline(string key)
         {
             // https://market.csgo.com/api/GoOffline/?key=
@@ -574,7 +632,7 @@ namespace MonoTM2
                 string answer = Web(host + "/api/GetNotifications/?key=" + key);
                 //var pr = new { success = false, Notifications = new { i_classid = "", i_instanceid ="", n_val="" }, error = "" };
                 var inf = JsonConvert.DeserializeObject<CNotifications>(answer);
-                if (inf.success == true)
+                if (inf.success)
                 {
                     return inf;
                 }
@@ -617,11 +675,11 @@ namespace MonoTM2
         {
             try
             {
-                ///https://market.csgo.com/api/MassInfo/[SELL]/[BUY]/[HISTORY]/[INFO]?key=[your_secret_key]
-                string answer = Web(host + $"/api/MassInfo/{sell}/{buy}/{history}/{info}/?key={key}",timeout: 25000, list:data);
+                //https://market.csgo.com/api/MassInfo/[SELL]/[BUY]/[HISTORY]/[INFO]?key=[your_secret_key]
+                var answer = Web(host + $"/api/MassInfo/{sell}/{buy}/{history}/{info}/?key={key}",timeout: 25000, list:data);
 
                 var inf = JsonConvert.DeserializeObject<MassInfo>(answer);
-                if (inf.Success == true)
+                if (inf.Success)
                 {
                     return inf;
                 }
