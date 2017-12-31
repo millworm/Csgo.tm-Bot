@@ -797,7 +797,7 @@ namespace MonoTM2
         /// </summary>
         public void UpdateOrdersAndNotifications()
         {
-            UpdateOrdersDelegate.Invoke();
+           //UpdateOrdersDelegate.Invoke();
             UpdateNotificationsDelegate.BeginInvoke(null, null);
         }
 
