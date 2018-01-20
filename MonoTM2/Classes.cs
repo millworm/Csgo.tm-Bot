@@ -8,7 +8,7 @@ using System.Collections.Generic;
  */
 namespace MonoTM2
 {
-    [Serializable]
+	[Serializable]
     class WS
     {
         public string wsAuth { get; set; }

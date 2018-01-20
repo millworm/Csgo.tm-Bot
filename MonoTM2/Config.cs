@@ -1,10 +1,9 @@
 ﻿using Newtonsoft.Json;
-using System;
 using System.Collections.Generic;
 using System.IO;
 namespace MonoTM2
 {
-    [JsonObject(Title = "RootObject")]
+	[JsonObject(Title = "RootObject")]
     class Config
     {
         public string SteamLogin { get; set; } = ""; 

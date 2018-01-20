@@ -11,9 +11,10 @@ namespace MonoTM2
 	class TradeWorker
     {
         IAsyncResult IIncomingTradeResult, IOutgoingTradeResult;
-        delegate void TradeDelegate();
 
-        TradeDelegate IncomingTradeDelegate, OutgoingTradeDelegate;
+	    private delegate void TradeDelegate();
+
+        TradeDelegate _incomingTradeDelegate, _outgoingTradeDelegate;
 
         long _timeLastLogin;
         Account _account;
@@ -24,15 +25,15 @@ namespace MonoTM2
 
         SteamGuardAccount _mobileAccount;
 
-        functions client;
-        bool accountFileExist = false;
+        Functions client;
+        bool accountFileExist;
 
         public TradeWorker()
         {
-            IncomingTradeDelegate = new TradeDelegate(IncomingTrade);
-            OutgoingTradeDelegate = new TradeDelegate(OutgoingTrade);
+            _incomingTradeDelegate = IncomingTrade;
+            _outgoingTradeDelegate = OutgoingTrade;
 
-            client = new functions();
+            client = new Functions();
 
             if (File.Exists("account.maFile"))
             {
@@ -60,17 +61,17 @@ namespace MonoTM2
             switch (type)
             {
                 case TypeTrade.IN:
-                    if (IIncomingTradeResult == null || IIncomingTradeResult.IsCompleted == true)
+                    if (IIncomingTradeResult == null || IIncomingTradeResult.IsCompleted)
                     {
-                        IIncomingTradeResult = IncomingTradeDelegate.BeginInvoke(null, null);
-                        IncomingTradeDelegate.EndInvoke(IIncomingTradeResult);
+                        IIncomingTradeResult = _incomingTradeDelegate.BeginInvoke(null, null);
+                        _incomingTradeDelegate.EndInvoke(IIncomingTradeResult);
                     }
                     break;
                 case TypeTrade.OUT:
-                    if (IOutgoingTradeResult == null || IOutgoingTradeResult.IsCompleted == true)
+                    if (IOutgoingTradeResult == null || IOutgoingTradeResult.IsCompleted)
                     {
-                        IOutgoingTradeResult = OutgoingTradeDelegate.BeginInvoke(null, null);
-                        OutgoingTradeDelegate.EndInvoke(IOutgoingTradeResult);
+                        IOutgoingTradeResult = _outgoingTradeDelegate.BeginInvoke(null, null);
+                        _outgoingTradeDelegate.EndInvoke(IOutgoingTradeResult);
                     }
                     break;
                 case TypeTrade.MOBILE:
@@ -108,7 +109,7 @@ namespace MonoTM2
                 {
                     //Запрашиваем бота
                     Console.WriteLine("Запрашиваем бота");
-                    var bot_id = client.GetBotID(_config.key);
+                    var bot_id = client.GetBotId(_config.key);
 
                     if (bot_id != null && bot_id != "0")
                     {

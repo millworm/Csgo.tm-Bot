@@ -8,17 +8,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
 using WebSocketSharp;
-using SteamToolkit.Configuration;
-using SteamToolkit.Trading;
-using SteamToolkit.Web;
 using SteamAuth;
 using LoginResult = SteamAuth.LoginResult;
 using System.Linq;
-using System.Diagnostics;
 
 namespace MonoTM2
 {
-    public class CBot:IDisposable
+	public class CBot:IDisposable
     {
         bool autoConfirmTrades, Close, accountFileExist;
 
@@ -29,7 +25,7 @@ namespace MonoTM2
         Thread Find;
         Task Finding;
 
-        functions CLIENT, CLIENT1;
+        Functions CLIENT, CLIENT1;
         private WebSocket client;
 
         const string host = "wss://wsn.dota2.net/wsn/";
@@ -90,7 +86,7 @@ namespace MonoTM2
 
             tradeWorker = new TradeWorker();
 
-            CallbackUpdater = new AsyncCallback(CorrectOrdersAndNotifications);
+            CallbackUpdater = CorrectOrdersAndNotifications;
             if (cfg.MassUpdate)
                 UpdatePriceDelegateAction = MassUpdate;
             else
@@ -101,8 +97,8 @@ namespace MonoTM2
             QuickOrderAction = QuickOrderF;
             CheckNotificationsDelegate = CheckNotifications;
 
-            CLIENT = new functions();
-            CLIENT1 = new functions();
+            CLIENT = new Functions();
+            CLIENT1 = new Functions();
 
             //загрузка итемов
             FileInfo b = new FileInfo("csgotmitems.dat");
@@ -112,7 +108,7 @@ namespace MonoTM2
                 BinaryFormatter binaryFormatter = new BinaryFormatter();
                 Items = (List<Itm>)binaryFormatter.Deserialize(fstream);
                 fstream.Close();
-                Items.Sort(delegate (Itm i1, Itm i2) { return i1.name.CompareTo(i2.name); });
+                Items.Sort((i1, i2) => i1.name.CompareTo(i2.name));
             }
 
             if (cfg.Messages.Count == 0 || cfg.Messages.Count != Enum.GetNames(typeof(MessageType)).Length)
@@ -131,10 +127,10 @@ namespace MonoTM2
             }
 
             //таймер обновления цен
-            UpdatePriceTimer.Elapsed += new ElapsedEventHandler(PriceCorrectTimer);
+            UpdatePriceTimer.Elapsed += PriceCorrectTimer;
             UpdatePriceTimer.Interval = cfg.UpdatePriceTimerTime * 60 * 1000;
 
-            pinPongTimer.Elapsed += new ElapsedEventHandler(PingPongTimer);
+            pinPongTimer.Elapsed += PingPongTimer;
             pinPongTimer.Interval = cfg.PingPongTimerTime * 60 * 1000;
 
             client = new WebSocket(host);
@@ -169,13 +165,14 @@ namespace MonoTM2
                              answer = answer.Replace(":\"{", ":{").Replace("\"\"", "");
                              answer = answer.Replace("}\"}", "}}");
                              answer = answer.Replace("\\\"\",", "\\\",");*/
-                            answer = ee.Data.Replace("\"\\\\u", "");
-                            answer = answer.Replace("\\\\\\", "\\");
-                            answer = answer.Replace("\\\"", "\"");
-                            answer = answer.Replace(@"\""", "\"");
-                            answer = answer.Replace(":\"\"{", ":{");
-                            answer = answer.Replace("\"\",", "\",");
-                            answer = answer.Replace("}\"\"}", "}}");
+                            answer = ee.Data
+										.Replace("\"\\\\u", "")
+										.Replace("\\\\\\", "\\")
+										.Replace("\\\"", "\"")
+										.Replace(@"\""", "\"")
+										.Replace(":\"\"{", ":{")
+										.Replace("\"\",", "\",")
+										.Replace("}\"\"}", "}}");
 
                             var ansWeb = JsonConvert.DeserializeAnonymousType(answer, webnotify);
                             //if (ansWeb != null && ansWeb.data.way == null)
@@ -196,10 +193,10 @@ namespace MonoTM2
                         case "itemstatus_go":
                             //{"type":"itemstatus_go","data":"{\"id\":\"173474064\",\"status\":5}"}
                             //WriteMessage("itemstatus_go " + ee.Data);
-                            answer = ee.Data.Replace("\\\"", "\"");
-                            answer = answer.Replace(":\"{", ":{");
-                            answer = answer.Replace("}\"}", "}}");
-                            var itemstatus_go = new { data = new { status = "" } };
+                            answer = ee.Data
+										.Replace("\\\"", "\"")
+										.Replace(":\"{", ":{")
+										.Replace("}\"}", "}}");
                             var ansItem = JsonConvert.DeserializeObject<TrOf>(answer);
                             switch (ansItem.data.status)
                             {
@@ -219,9 +216,10 @@ namespace MonoTM2
 
 #endif
                             //WriteMessage("itemout_new_go "+ee.Data);
-                            answer = ee.Data.Replace("\\\"", "\"");
-                            answer = answer.Replace(":\"{", ":{");
-                            answer = answer.Replace("}\"}", "}}");
+                            answer = ee.Data
+										.Replace("\\\"", "\"")
+										.Replace(":\"{", ":{")
+										.Replace("}\"}", "}}");
                             //answer = answer.Replace(":\"\"{", ":{");
                             //answer = answer.Replace("}\"\"}", "}}");
                             answer = answer.Replace(@"\", "");
@@ -249,10 +247,12 @@ namespace MonoTM2
                         //case "webnotify_betsonly":
                         //    break;
                         case "newitems_go":
-                            answer = ee.Data.Replace("\\\"", "\"");
-                            answer = answer.Replace(":\"{", ":{");
-                            answer = answer.Replace("}\"}", "}}");
-                            answer = answer.Replace("\\\"\\\\u", "").Replace("\\\"\",", "\\\",");
+                            answer = ee.Data
+										.Replace("\\\"", "\"")
+										.Replace(":\"{", ":{")
+										.Replace("}\"}", "}}")
+										.Replace("\\\"\\\\u", "")
+										.Replace("\\\"\",", "\\\",");
                             WSItm t = JsonConvert.DeserializeObject<WSItm>(answer);
 
                             id = t.data.i_classid + "_" + t.data.i_instanceid;
@@ -339,7 +339,7 @@ namespace MonoTM2
         public void find()
         // async Task find()
         {
-            functions bot = new functions();
+            Functions bot = new Functions();
             while (!Close)
             {
                 try
@@ -1129,14 +1129,14 @@ namespace MonoTM2
         /// <summary>
         /// Выставление персональной прибыли для предмета
         /// </summary>
-        /// <param name="_id">Номер предмета в списке</param>
-        /// <param name="_profit">Прибыль</param>
+        /// <param name="id">Номер предмета в списке</param>
+        /// <param name="profit">Прибыль</param>
         /// <returns></returns>
-        public bool SetProfit(int _id, int _profit)
+        public bool SetProfit(int id, int profit)
         {
             try
             {
-                Items[_id].profit = _profit;
+                Items[id].profit = profit;
                 Save(false);
                 return true;
             }
@@ -1149,25 +1149,25 @@ namespace MonoTM2
         /// <summary>
         /// Тип проверки цены на предмет
         /// </summary>
-        /// <param name="_id">Номер предмета</param>
+        /// <param name="id">Номер предмета</param>
         /// <returns></returns>
-        public PriceCheck GetPriceCheck(int _id)
+        public PriceCheck GetPriceCheck(int id)
         {
-            return Items[_id].priceCheck;
+            return Items[id].priceCheck;
         }
 
         /// <summary>
         /// Установить тип проверки цены
         /// </summary>
-        /// <param name="_id">Номер предмета</param>
-        /// <param name="_type">Тип</param>
+        /// <param name="id">Номер предмета</param>
+        /// <param name="type">Тип</param>
         /// <returns></returns>
-        public bool SetPriceCheck(int _id, int _type)
+        public bool SetPriceCheck(int id, int type)
         {
             try
             {
-                var type = (PriceCheck)_type;
-                Items[_id].priceCheck = type;
+                var typePriceCheck = (PriceCheck)type;
+                Items[id].priceCheck = typePriceCheck;
                 Save(false);
                 return true;
             }
@@ -1265,7 +1265,7 @@ namespace MonoTM2
 
 			CLIENT.DeleteAllOrders(cfg.key);
 
-			foreach (Itm I in Items)
+			foreach (var I in Items)
 			{
 				CLIENT.Notification(I, cfg.key, 1);
 				Thread.Sleep(cfg.Itimer);
