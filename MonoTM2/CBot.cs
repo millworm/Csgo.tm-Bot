@@ -26,8 +26,6 @@ namespace MonoTM2
 		Config cfg;
 		TradeWorker tradeWorker;
 
-	   // DbWorker dbWorker;
-
 		Thread Find;
 		Task Finding;
 
@@ -96,8 +94,6 @@ namespace MonoTM2
             //работает еще в демо режиме
             tradeWorker.OnOutgoingTrade += setItems;
 #endif
-            // dbWorker = new DbWorker();
-
             CallbackUpdater = CorrectOrdersAndNotifications;
 			if (cfg.MassUpdate)
 				UpdatePriceDelegateAction = MassUpdate;
@@ -1287,7 +1283,7 @@ namespace MonoTM2
             if (inv.success && inv.dataResult.Count > 0)
             {
                 var history = CLIENT.OperationHistory(DateTimeOffset.Now.AddHours(-4).ToUnixTimeSeconds(),
-                    DateTimeOffset.Now.ToUnixTimeSeconds(), cfg.key);
+                    DateTimeOffset.Now.AddHours(+3).ToUnixTimeSeconds(), cfg.key);
 
                 foreach (var itm in inv.dataResult)
                 {
