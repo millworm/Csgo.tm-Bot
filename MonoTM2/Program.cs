@@ -11,8 +11,9 @@ namespace MonoTM2
             //загрузка всех настроек
             bot.Loader();
             //стартуем
-            bot.Start();
-
+            #if !DEBUG
+                bot.Start();
+            #endif
             Console.WriteLine("Запуск выполнен");
             string Mess = "";
             while (Mess != "q")
@@ -227,7 +228,6 @@ namespace MonoTM2
                                 }
                             }
                             break;
-
                         default:
                             Console.WriteLine("Команда неизвестна");
                             break;
@@ -238,6 +238,7 @@ namespace MonoTM2
                     Console.WriteLine(tty.Message);
                 }
             }
+            bot.Dispose();
         }
 
     }

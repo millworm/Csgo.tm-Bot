@@ -1,16 +1,20 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Net;
 using System.Text;
+using System.Reflection;
+using System.Linq;
 
 namespace MonoTM2
 {
     class Functions
     {
 	    private const string Host = "https://market.csgo.com";
+        private readonly string _line = new string('-', 50);
 
 	    //поиск вещи
         public bool Buy(Itm item, string key, int timeout = 500)
@@ -108,56 +112,35 @@ namespace MonoTM2
 		/// <summary>
 		/// Запрос мин. цены
 		/// </summary>
-		public string GetMinPrice(Itm item, string key)
+		public int GetMinPrice(Itm item, string key)
         {
             string resp = Web(Host + "/api/BestSellOffer/" + item.id + "/?key=" + key);
 
             var bestSellOffer = new { success = false, best_offer = "", error = "" };
             var message = JsonConvert.DeserializeAnonymousType(resp, bestSellOffer);
-            if (message != null && message.error == null && message.success)
-            {
-                return message.best_offer;
-            }
-            else
-            {
-                return "-1";
-            }
+	        return (bool) message?.success? int.Parse(message.best_offer): -1;
         }
 
 		/// <summary>
 		/// Запрос средней цены
 		/// </summary>
-		public string GetAverangePrice(Itm item, string key)
+		public int GetAverangePrice(Itm item, string key)
         {
             string resp = Web(Host + "/api/ItemHistory/" + item.id + "/?key=" + key);
-            var pr = new { success = "", average = "" };
+            var pr = new { success = false, average = 0 };
             var inf = JsonConvert.DeserializeAnonymousType(resp, pr);
-            if (inf.success.ToLower().Contains("true"))
-            {
-                return inf.average;
-            }
-            else
-            {
-                return "0";
-            }
+	        return (bool) inf?.success ? inf.average : 0;
         }
 
 		/// <summary>
 		/// Запрос последней в истории цены
 		/// </summary>
-		public string GetLastPrice(Itm item, string key)
+		public int GetLastPrice(Itm item, string key)
         {
             string resp = Web(Host + "/api/ItemHistory/" + item.id + "/?key=" + key);
-            var pr = new { success = "", average = "", history = new[] { new { l_price = "" } }, error = "" };
+            var pr = new { success = false, average = 0, history = new[] { new { l_price = "" } }, error = "" };
             var inf = JsonConvert.DeserializeAnonymousType(resp, pr);
-            if (inf.success.ToLower().Contains("true"))
-            {
-                return (Convert.ToDouble(inf.history[0].l_price)).ToString();
-            }
-            else
-            {
-                return "0";
-            }
+	        return (bool)inf?.success ? Convert.ToInt32(inf.history[0].l_price) : 0;
         }
 
 		/// <summary>
@@ -634,21 +617,180 @@ namespace MonoTM2
         /// 2 - Получить дополнительно хэш для покупки, ссылку на картинку
         /// 3 - Получать дополнительно описание предмета и теги из Steam</param>
         /// <returns>MassInfo</returns>
-        public MassInfo MassInfo(string key, string data, uint sell = 2, uint buy = 0, uint history = 0, uint info = 0 )
+        public ReturnResult<List<MassInfoResult>> MassInfo(string key, string data, uint sell = 2, uint buy = 0, uint history = 0, uint info = 0 )
         {
+            //https://market.csgo.com/api/MassInfo/[SELL]/[BUY]/[HISTORY]/[INFO]?key=[your_secret_key]
+            var result = new ReturnResult<List<MassInfoResult>>();
+            var answer = Web($"{Host}/api/MassInfo/{sell}/{buy}/{history}/{info}/?key={key}", timeout: 25000, list: data);
             try
             {
-                //https://market.csgo.com/api/MassInfo/[SELL]/[BUY]/[HISTORY]/[INFO]?key=[your_secret_key]
-                var answer = Web(Host + $"/api/MassInfo/{sell}/{buy}/{history}/{info}/?key={key}",timeout: 25000, list:data);
-
                 var inf = JsonConvert.DeserializeObject<MassInfo>(answer);
-				return inf.Success ? inf : null;
+                if (inf.success)
+                {
+                    result.success = true;
+                    result.dataResult = inf.results;
+                }
+                else
+                {
+                    result.success = false;
+                    result.errorMessage = inf.error;
+                }
+				return result;
             }
-            catch
+            catch(Exception ex)
             {
-                return null;
+                return new ReturnResult<List<MassInfoResult>>
+                {
+                    success = false,
+                    errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answer}\nTarget:{ex.StackTrace}\n{_line}"
+                };
             }
         }
 
+        /// <summary>
+        /// Получение инвентаря Steam, только те предметы, которые Вы еще не выставили на продажу.
+        /// </summary>
+        public ReturnResult<List<GetInvDatum>> GetInv(string key)
+        {
+            //https://market.csgo.com/api/GetInv/?key=[your_secret_key]
+            var result = new ReturnResult<List<GetInvDatum>>();
+            var answerStr = Web($"{Host}/api/GetInv/?key={key}", 2000);
+            try
+            {
+                var desirAnswer = JsonConvert.DeserializeObject<GetInv>(answerStr);
+
+                if (desirAnswer.success)
+                {
+                    result.success = true;
+                    result.dataResult = desirAnswer.data;
+                }
+                else
+                {
+                    result.success = false;
+                    result.errorMessage = desirAnswer.error;
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new ReturnResult<List<GetInvDatum>>
+                {
+                    success = false,
+                    errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.StackTrace}\n{_line}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Выставить новый предмет на продажу. Чтобы получить список предметов для выставления, воспользуйтесь методом GetInv.
+        /// </summary>
+        /// <param name="item">Предмет для выставления типа GetInvDatum</param>
+        /// <param name="price">Цена в копейках</param>
+        /// <returns>true - выставлен</returns>
+        public ReturnResult<bool> SetPrice(GetInvDatum item, int price, string key)
+        {
+            //https://market.csgo.com/api/SetPrice/new_[classid]_[instanceid]/[price]/?key=[your_secret_key]
+            var result = new ReturnResult<bool>();
+            var answerStr = Web($"{Host}/api/SetPrice/{item.ui_id}/{price}?key={key}", 2000);
+            try
+            {
+                var type = new {success = false, error = "", result = 0, price = 0};
+
+                var desirAns = JsonConvert.DeserializeAnonymousType(answerStr, type);
+
+                if (desirAns.success)
+                {
+                    result.success = true;
+                }
+                else
+                {
+                    result.success = false;
+                    result.errorMessage = desirAns.error;
+                }
+                    
+                return result;
+            }
+            catch(Exception ex)
+            {
+                return new ReturnResult<bool>{
+                    success = false,
+                    errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}" 
+                };
+            }
+        }
+
+        /// <summary>
+        /// Получить предложения о продаже определенного предмета.
+        /// </summary>
+        public ReturnResult<List<Offer>> SellOffers(string classid, string instanceid, string key)
+        {
+            //https://market.csgo.com/api/SellOffers/[classid]_[instanceid]/?key=[your_secret_key]
+            var result = new ReturnResult<List<Offer>>();
+            var answerStr = Web($"{Host}/api/SellOffers/{classid}_{instanceid}?key={key}", 2000);
+            try
+            {
+                var type = new {success = false, error = "", offers = new List<Offer>(), best_offer = ""};
+                var desirAns = JsonConvert.DeserializeAnonymousType(answerStr, type);
+
+                if (desirAns.success)
+                {
+                    result.success = true;
+                    result.dataResult = desirAns.offers;
+                }
+                else
+                {
+                    result.success = false;
+                    result.errorMessage = desirAns.error;
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new ReturnResult<List<Offer>>
+                {
+                    success = false,
+                    errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Получить историю операций на всех маркетах за определенный период времени.
+        /// </summary>
+        /// <param name="startTime">unix time в секундах начала периода</param>
+        /// <param name="endTime">unix time в секундах конца периода</param>
+        public ReturnResult<List<OperationHistory>> OperationHistory(long startTime, long endTime, string key)
+        {
+            //https://market.csgo.com/api/OperationHistory/[start_time]/[end_time]/?key=[your_secret_key]
+            var answerStr = Web(Host + $"/api/OperationHistory/{startTime}/{endTime}/?key={key}");
+            var result = new ReturnResult<List<OperationHistory>>();
+            try
+            {
+                var pr = new {success = false, history = new List<OperationHistory>(), error = ""};
+                var inf = JsonConvert.DeserializeAnonymousType(answerStr, pr);
+                if (inf.success && inf.history != null)
+                {
+                    result.success = true;
+                    result.dataResult = inf.history;
+                }
+                else
+                {
+                    result.success = false;
+                    result.errorMessage = inf.error;
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new ReturnResult<List<OperationHistory>>
+                {
+                    success = false,
+                    errorMessage =
+                        $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}"
+                };
+            }
+        }
     }
 }

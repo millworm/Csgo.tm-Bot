@@ -1,10 +1,10 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.IO;
 using System.Threading;
+using Newtonsoft.Json;
+using SteamAuth;
 using SteamToolkit.Trading;
 using SteamToolkit.Web;
-using SteamAuth;
 
 namespace MonoTM2
 {
@@ -12,7 +12,10 @@ namespace MonoTM2
     {
         IAsyncResult IIncomingTradeResult, IOutgoingTradeResult;
 
-	    private delegate void TradeDelegate();
+        public event EventHandler OnOutgoingTrade;
+
+
+        private delegate void TradeDelegate();
 
         TradeDelegate _incomingTradeDelegate, _outgoingTradeDelegate;
 
@@ -70,7 +73,7 @@ namespace MonoTM2
                 case TypeTrade.OUT:
                     if (IOutgoingTradeResult == null || IOutgoingTradeResult.IsCompleted)
                     {
-                        IOutgoingTradeResult = _outgoingTradeDelegate.BeginInvoke(null, null);
+                        IOutgoingTradeResult = _outgoingTradeDelegate.BeginInvoke(EventStarter, null);
                         _outgoingTradeDelegate.EndInvoke(IOutgoingTradeResult);
                     }
                     break;
@@ -310,6 +313,14 @@ namespace MonoTM2
             catch
             {
 
+            }
+        }
+
+        void EventStarter(IAsyncResult res)
+        {
+            if (res.IsCompleted)
+            {
+                OnOutgoingTrade(this,null);
             }
         }
     }
