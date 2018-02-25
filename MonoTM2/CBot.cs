@@ -15,6 +15,7 @@ using SteamAuth;
 using LoginResult = SteamAuth.LoginResult;
 using System.Linq;
 using System.Diagnostics;
+using System.Text;
 
 namespace MonoTM2
 {
@@ -629,6 +630,7 @@ namespace MonoTM2
 					tradeWorker.AcceptTrade(TypeTrade.IN);
 				//AcceptTradeAction.Invoke();
 				//AcceptMobileOrdersAction.Invoke();
+			    setItems(this, null);
 			}
 		}
 
@@ -1275,13 +1277,13 @@ namespace MonoTM2
         /// <param name="maxPosition">Максимальная позиция для выставления</param>
 	    void setItems(object sender, EventArgs e)
         {
-            var discount = 1 - Convert.ToDouble(cfg.discount / 100);
-            int maxItemsPerOfferPrice = 2, maxPosition = 5;
-            double profit;
             //Получаем список вещей в инвентаре
             var inv = CLIENT.GetInv(cfg.key);
             if (inv.success && inv.dataResult.Count > 0)
             {
+                var discount = 1 - Convert.ToDouble(cfg.discount / 100);
+                int maxItemsPerOfferPrice = 2, maxPosition = 5;
+                //double profit;
                 var history = CLIENT.OperationHistory(DateTimeOffset.Now.AddHours(-4).ToUnixTimeSeconds(),
                     DateTimeOffset.Now.AddHours(+3).ToUnixTimeSeconds(), cfg.key);
 
@@ -1289,10 +1291,9 @@ namespace MonoTM2
                 {
                     var buyList = history.dataResult.FindAll(item =>
                         item.stage == "2"
-                     && item.h_event == "buy_go"
-                     && item.classid == itm.i_classid
-                     && item.instanceid == itm.i_instanceid);
-
+                        && item.h_event == "buy_go"
+                        && item.classid == itm.i_classid
+                        && item.instanceid == itm.i_instanceid);
                     //если в истории не нашли покупку, то выходим
                     if (buyList.Count == 0) continue;
 
@@ -1311,19 +1312,22 @@ namespace MonoTM2
                     var position = 0;
                     //Получаем предложения о продаже
                     var sellOffers = CLIENT.SellOffers(itm.i_classid, itm.i_instanceid, cfg.key);
+
                     if (sellOffers.success)
                     {
                         var currentPosition = 0;
                         //Максимальная цена: ~ средняя + 10%
                         //чтобы сильно не уйти, если список продаж пустой
-                        var exPrice = (int)(CLIENT.GetAverangePrice(new Itm { id = $"{itm.i_classid}_{itm.i_instanceid}" }, cfg.key) * 1.1 + 0.5);
+                        var exPrice =
+                            (int) (CLIENT.GetAverangePrice(new Itm {id = $"{itm.i_classid}_{itm.i_instanceid}"},
+                                       cfg.key) * 1.1 + 0.5);
                         int i = 0;
                         for (; i < sellOffers.dataResult.Count; i++)
                         {
                             var valuePos = int.Parse(sellOffers.dataResult[i].count);
                             var valuePrice = int.Parse(sellOffers.dataResult[i].price);
 
-                            if (exPrice < valuePrice  || valuePos > maxItemsPerOfferPrice) break;
+                            if (exPrice < valuePrice || valuePos > maxItemsPerOfferPrice) break;
 
                             if (currentPosition + valuePos < maxPosition && valuePrice > buyPrice)
                                 currentPosition += valuePos;
@@ -1335,19 +1339,25 @@ namespace MonoTM2
 
                         var priceForSet = int.Parse(sellOffers.dataResult[i].price) - 1;
                         // var recievedMoney = (int)(priceForSet * discount - profit);
-                        var recievedMoney = (int)(priceForSet * discount);
+                        var recievedMoney = (int) (priceForSet * discount);
                         if (recievedMoney > buyPrice)
                         {
                             CLIENT.SetPrice(itm, priceForSet, cfg.key);
-                            WriteMessage($"Выставлен {itm.i_market_name} за {priceForSet} коп.", MessageType.Info);
+                            WriteMessage($"Выставлен {itm.i_market_hash_name} за {priceForSet} коп.", MessageType.Info);
                         }
                     }
                 }
             }
+            else
+            {
+                if(inv.errorMessage != null)
+                    WriteMessage($"setItems\n{inv.errorMessage}", MessageType.Error);
+            }
+            // WriteMessage(sb.ToString(), MessageType.Info);
         }
 
 
-		public void Dispose()
+        public void Dispose()
 		{
 			Close = true;
 

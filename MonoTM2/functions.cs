@@ -659,7 +659,7 @@ namespace MonoTM2
             {
                 var desirAnswer = JsonConvert.DeserializeObject<GetInv>(answerStr);
 
-                if (desirAnswer.success)
+                if (desirAnswer.success && desirAnswer.data != null)
                 {
                     result.success = true;
                     result.dataResult = desirAnswer.data;
@@ -733,7 +733,7 @@ namespace MonoTM2
                 var type = new {success = false, error = "", offers = new List<Offer>(), best_offer = ""};
                 var desirAns = JsonConvert.DeserializeAnonymousType(answerStr, type);
 
-                if (desirAns.success)
+                if (desirAns.success && desirAns.offers != null)
                 {
                     result.success = true;
                     result.dataResult = desirAns.offers;

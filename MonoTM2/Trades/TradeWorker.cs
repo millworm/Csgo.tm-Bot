@@ -320,7 +320,11 @@ namespace MonoTM2
         {
             if (res.IsCompleted)
             {
-                OnOutgoingTrade(this,null);
+                try
+                {
+                    OnOutgoingTrade?.Invoke(this, null);
+                }
+                catch { }
             }
         }
     }
