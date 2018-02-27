@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 
 
 namespace MonoTM2
@@ -7,6 +8,7 @@ namespace MonoTM2
     {
         static void Main()
         {
+            Console.Title = $"CsgoTm bot v.{typeof(CBot).Assembly.GetName().Version}";
             CBot bot = new CBot();
             //загрузка всех настроек
             bot.Loader();

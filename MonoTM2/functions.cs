@@ -14,10 +14,10 @@ namespace MonoTM2
     class Functions
     {
 	    private const string Host = "https://market.csgo.com";
-        private readonly string _line = new string('-', 50);
+        private static readonly string _line = new string('-', 50);
 
 	    //поиск вещи
-        public bool Buy(Itm item, string key, int timeout = 500)
+        public static bool Buy(Itm item, string key, int timeout = 500)
         {
             int i = 0;
             try
@@ -71,7 +71,7 @@ namespace MonoTM2
 		/// </summary>
 		/// <param name="key"></param>
 		/// <returns>Trades</returns>
-		public Trades GetTrades(string key)
+		public static Trades GetTrades(string key)
         {
             try
             {
@@ -94,7 +94,7 @@ namespace MonoTM2
         /// <param name="key">Api key</param>
         /// <param name="lang">en,ru</param>
         /// <returns>string hash</returns>
-        public string GetHash(Itm item, string key, string lang = "en")
+        public static string GetHash(Itm item, string key, string lang = "en")
         {
             string pattern = "[0-9]{1,15}[-]{1}[0-9]{1,15}";
             var match = System.Text.RegularExpressions.Regex.Match(item.link, pattern);
@@ -112,7 +112,7 @@ namespace MonoTM2
 		/// <summary>
 		/// Запрос мин. цены
 		/// </summary>
-		public int GetMinPrice(Itm item, string key)
+		public static int GetMinPrice(Itm item, string key)
         {
             string resp = Web(Host + "/api/BestSellOffer/" + item.id + "/?key=" + key);
 
@@ -124,7 +124,7 @@ namespace MonoTM2
 		/// <summary>
 		/// Запрос средней цены
 		/// </summary>
-		public int GetAverangePrice(Itm item, string key)
+		public static int GetAverangePrice(Itm item, string key)
         {
             string resp = Web(Host + "/api/ItemHistory/" + item.id + "/?key=" + key);
             var pr = new { success = false, average = 0 };
@@ -135,7 +135,7 @@ namespace MonoTM2
 		/// <summary>
 		/// Запрос последней в истории цены
 		/// </summary>
-		public int GetLastPrice(Itm item, string key)
+		public static int GetLastPrice(Itm item, string key)
         {
             string resp = Web(Host + "/api/ItemHistory/" + item.id + "/?key=" + key);
             var pr = new { success = false, average = 0, history = new[] { new { l_price = "" } }, error = "" };
@@ -146,7 +146,7 @@ namespace MonoTM2
 		/// <summary>
 		/// Запрос баланса
 		/// </summary>
-		public int GetMoney(string key)
+		public static int GetMoney(string key)
         {
             try
             {
@@ -175,7 +175,7 @@ namespace MonoTM2
 		/// <param name="key"></param>
 		/// <param name="o"></param>
 		/// <returns></returns>
-		public Trade GetOffer(string bid, string key, string o = "out")
+		public static Trade GetOffer(string bid, string key, string o = "out")
         {
             try
             {
@@ -208,7 +208,7 @@ namespace MonoTM2
         /// <summary>
 		/// Запросить id бота
 		/// </summary>
-        public string GetBotId(string key)
+        public static string GetBotId(string key)
         {
             try
             {
@@ -234,7 +234,7 @@ namespace MonoTM2
 		/// Отослать уведомление сайту об онлайне
 		/// </summary>
 		/// <param name="key"></param>
-        public void Ping(string key)
+        public static void Ping(string key)
         {
             Web(Host + "/api/PingPong/?key=" + key);
         }
@@ -244,7 +244,7 @@ namespace MonoTM2
         /// </summary>
         /// <param name="key">api key</param>
         /// <returns>string socket key</returns>
-        public string GetWS(string key)
+        public static string GetWS(string key)
         {
             return Web(Host + "/api/GetWSAuth/?key=" + key);
         }
@@ -297,7 +297,7 @@ namespace MonoTM2
 		/// <summary>
 		/// Получения списка быстрых покупок
 		/// </summary>
-		public List<QItems> QList(string key)
+		public static List<QItems> QList(string key)
         {
             try
             {
@@ -324,7 +324,7 @@ namespace MonoTM2
 		/// <param name="key">Ключ</param>
 		/// <param name="id">Id предмета</param>
 		/// <returns>True - покупка удалась; False - покупку не удалось совершить</returns>
-        public bool QBuy(string key, string id)
+        public static bool QBuy(string key, string id)
         {
             try
             {
@@ -341,7 +341,7 @@ namespace MonoTM2
 		/// <summary>
 		/// Список отправленных маркетов трейдов
 		/// </summary>
-		public MarketTrades MarketTrades(string key)
+		public static MarketTrades MarketTrades(string key)
         {
             try
             {
@@ -358,7 +358,7 @@ namespace MonoTM2
 		/// <summary>
 		/// Обновить инвентарь
 		/// </summary>
-		public void UpdateInvent(string key)
+		public static void UpdateInvent(string key)
         {
 	        Web(Host + "/api/UpdateInventory/?key=" + key);
 			/* string answer = Web(Host + "/api/UpdateInventory/?key=" + key);
@@ -372,7 +372,7 @@ namespace MonoTM2
         /// </summary>
         /// <param name="key">api key</param>
         /// <returns></returns>
-        public bool DeleteAllOrders(string key)
+        public static bool DeleteAllOrders(string key)
         {
             try
             {
@@ -393,7 +393,7 @@ namespace MonoTM2
 		/// <summary>
 		/// Добавление ордера на покупку
 		/// </summary>
-        public string ProcessOrder(Itm item, string key)
+        public static string ProcessOrder(Itm item, string key)
         {
             try
             {
@@ -423,7 +423,7 @@ namespace MonoTM2
         /// <param name="key">api ключ</param>
         /// <param name="price">1 если хотим удалить уведомление</param>
         /// <returns>возвращает строку true, если все прошло без ошибок, иначе текст ошибки</returns>
-        public string Notification(Itm item, string key, int price = 0)
+        public static string Notification(Itm item, string key, int price = 0)
         {
             try
             {
@@ -457,7 +457,7 @@ namespace MonoTM2
 		/// 10.01 - Bad key
 		/// 10.02 - Exception
 		/// 10.03 - Иная ошибка</returns>
-        public double GetDiscounts(string key)
+        public static double GetDiscounts(string key)
         {
             try
             {
@@ -492,7 +492,7 @@ namespace MonoTM2
         /// Получение дневной прибыли
         /// </summary>
         /// <returns>Примерная дневная прибыль в копейках</returns>
-        public int GetProfit(string key)
+        public static int GetProfit(string key)
         {
             try
             {
@@ -533,7 +533,7 @@ namespace MonoTM2
 		/// <summary>
 		/// Уйти офлайн
 		/// </summary>
-        public void GoOffline(string key)
+        public static void GoOffline(string key)
         {
             // https://market.csgo.com/api/GoOffline/?key=
             Web(Host + "/api/GoOffline/?key=" + key);
@@ -544,7 +544,7 @@ namespace MonoTM2
         /// </summary>
         /// <param name="key">Api ключ</param>
         /// <returns>Возвращает переменную с двумя значениями: getCount - сколько нужно принять; outCount - сколько нужно передать</returns>
-        public InventOffersInfo CountItemsToTransfer(string key)
+        public static InventOffersInfo CountItemsToTransfer(string key)
         {
             try
             {
@@ -578,7 +578,7 @@ namespace MonoTM2
         /// Получить список включенных уведомлений о изменении цены
         /// </summary>
         /// <param name="key">Api key</param>
-        public CNotifications GetNotifications(string key)
+        public static CNotifications GetNotifications(string key)
         {
             //https://market.csgo.com/api/GetNotifications/?key=[your_secret_key]
             try
@@ -617,7 +617,7 @@ namespace MonoTM2
         /// 2 - Получить дополнительно хэш для покупки, ссылку на картинку
         /// 3 - Получать дополнительно описание предмета и теги из Steam</param>
         /// <returns>MassInfo</returns>
-        public ReturnResult<List<MassInfoResult>> MassInfo(string key, string data, uint sell = 2, uint buy = 0, uint history = 0, uint info = 0 )
+        public static ReturnResult<List<MassInfoResult>> MassInfo(string key, string data, uint sell = 2, uint buy = 0, uint history = 0, uint info = 0 )
         {
             //https://market.csgo.com/api/MassInfo/[SELL]/[BUY]/[HISTORY]/[INFO]?key=[your_secret_key]
             var result = new ReturnResult<List<MassInfoResult>>();
@@ -650,7 +650,7 @@ namespace MonoTM2
         /// <summary>
         /// Получение инвентаря Steam, только те предметы, которые Вы еще не выставили на продажу.
         /// </summary>
-        public ReturnResult<List<GetInvDatum>> GetInv(string key)
+        public static ReturnResult<List<GetInvDatum>> GetInv(string key)
         {
             //https://market.csgo.com/api/GetInv/?key=[your_secret_key]
             var result = new ReturnResult<List<GetInvDatum>>();
@@ -688,7 +688,7 @@ namespace MonoTM2
         /// <param name="item">Предмет для выставления типа GetInvDatum</param>
         /// <param name="price">Цена в копейках</param>
         /// <returns>true - выставлен</returns>
-        public ReturnResult<bool> SetPrice(GetInvDatum item, int price, string key)
+        public static ReturnResult<bool> SetPrice(GetInvDatum item, int price, string key)
         {
             //https://market.csgo.com/api/SetPrice/new_[classid]_[instanceid]/[price]/?key=[your_secret_key]
             var result = new ReturnResult<bool>();
@@ -723,7 +723,7 @@ namespace MonoTM2
         /// <summary>
         /// Получить предложения о продаже определенного предмета.
         /// </summary>
-        public ReturnResult<List<Offer>> SellOffers(string classid, string instanceid, string key)
+        public static ReturnResult<List<Offer>> SellOffers(string classid, string instanceid, string key)
         {
             //https://market.csgo.com/api/SellOffers/[classid]_[instanceid]/?key=[your_secret_key]
             var result = new ReturnResult<List<Offer>>();
@@ -761,7 +761,7 @@ namespace MonoTM2
         /// </summary>
         /// <param name="startTime">unix time в секундах начала периода</param>
         /// <param name="endTime">unix time в секундах конца периода</param>
-        public ReturnResult<List<OperationHistory>> OperationHistory(long startTime, long endTime, string key)
+        public static ReturnResult<List<OperationHistory>> OperationHistory(long startTime, long endTime, string key)
         {
             //https://market.csgo.com/api/OperationHistory/[start_time]/[end_time]/?key=[your_secret_key]
             var answerStr = Web(Host + $"/api/OperationHistory/{startTime}/{endTime}/?key={key}");

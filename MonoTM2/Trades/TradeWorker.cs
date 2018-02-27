@@ -28,7 +28,7 @@ namespace MonoTM2
 
         SteamGuardAccount _mobileAccount;
 
-        Functions client;
+        //Functions client;
         bool accountFileExist;
 
         public TradeWorker()
@@ -36,7 +36,7 @@ namespace MonoTM2
             _incomingTradeDelegate = IncomingTrade;
             _outgoingTradeDelegate = OutgoingTrade;
 
-            client = new Functions();
+            //client = new Functions();
 
             if (File.Exists("account.maFile"))
             {
@@ -91,7 +91,7 @@ namespace MonoTM2
             try
             {
                 //проверяем наличие входящих трейдов от маркета
-                var tradeList = client.MarketTrades(_config.key);
+                var tradeList = Functions.MarketTrades(_config.key);
 
                 if (tradeList?.success == true && tradeList.trades.Count != 0)
                 {
@@ -102,7 +102,7 @@ namespace MonoTM2
                             if (AcceptTrade(Convert.ToUInt32(trade.trade_id), Convert.ToUInt32(trade.bot_id)))
                             {
                                 Console.WriteLine("Подтвержден");
-                                client.UpdateInvent(_config.key);
+                                Functions.UpdateInvent(_config.key);
                             }
                             //TODO дописать проверку на наличие обменов
                         }
@@ -112,20 +112,20 @@ namespace MonoTM2
                 {
                     //Запрашиваем бота
                     Console.WriteLine("Запрашиваем бота");
-                    var bot_id = client.GetBotId(_config.key);
+                    var bot_id = Functions.GetBotId(_config.key);
 
                     if (bot_id != null && bot_id != "0")
                     {
                         //Запрашиваем данные оффера
                         Console.WriteLine("Запрашиваем оффер");
-                        var offer = client.GetOffer(bot_id, _config.key);
+                        var offer = Functions.GetOffer(bot_id, _config.key);
 
                         if (offer?.success == true)
                         {
                             if (AcceptTrade(Convert.ToUInt32(offer.trade), Convert.ToUInt32(bot_id)))
                             {
                                 Console.WriteLine("Подтвердили");
-                                client.UpdateInvent(_config.key);
+                                Functions.UpdateInvent(_config.key);
                             }
                         }
                     }
@@ -149,7 +149,7 @@ namespace MonoTM2
                 if (accountFileExist)
                 {
                     //проверяем наличие входящих трейдов от маркета
-                    var tradeList = client.MarketTrades(_config.key);
+                    var tradeList = Functions.MarketTrades(_config.key);
 
                     if (tradeList?.success == true && tradeList.trades.Count != 0)
                     {
@@ -168,7 +168,7 @@ namespace MonoTM2
                     {
                         //Получаем оффер
                         Console.WriteLine("Получаем оффер");
-                        var offer = client.GetOffer("1", _config.key, "in");
+                        var offer = Functions.GetOffer("1", _config.key, "in");
 
                         if (offer?.success == true)
                         {

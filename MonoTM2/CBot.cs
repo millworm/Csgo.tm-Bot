@@ -28,9 +28,7 @@ namespace MonoTM2
 		TradeWorker tradeWorker;
 
 		Thread Find;
-		Task Finding;
 
-		Functions CLIENT, CLIENT1;
 		private WebSocket client;
 
 		const string host = "wss://wsn.dota2.net/wsn/";
@@ -105,9 +103,6 @@ namespace MonoTM2
 			UpdateNotificationsDelegate = CorrectNotifications;
 			QuickOrderAction = QuickOrderF;
 			CheckNotificationsDelegate = CheckNotifications;
-
-			CLIENT = new Functions();
-			CLIENT1 = new Functions();
 
 			//загрузка итемов
 			FileInfo b = new FileInfo("csgotmitems.dat");
@@ -190,7 +185,7 @@ namespace MonoTM2
 							id = ansWeb.data.classid + "_" + ansWeb.data.instanceid;
 							var ItemInListWeb = Items.Find(item => item.id == id); //&& item.price >= (t.data.ui_price));
 
-							if (ItemInListWeb != null && (CLIENT1.Buy(ItemInListWeb, cfg.key) || CLIENT1.Buy(ItemInListWeb, cfg.key, 100)))
+							if (ItemInListWeb != null && (Functions.Buy(ItemInListWeb, cfg.key) || Functions.Buy(ItemInListWeb, cfg.key, 100)))
 							{
 								WriteMessage(string.Format("*webnotify* {0} куплен за {1} ({2})", ItemInListWeb.name, ansWeb.data.price, ItemInListWeb.price), MessageType.BuyWeapon);
 							}
@@ -270,7 +265,7 @@ namespace MonoTM2
 
 							if (ItemInList != null && (ItemInList.price >= (t.data.ui_price)))
 							{
-								if (CLIENT1.Buy(ItemInList, cfg.key) || CLIENT1.Buy(ItemInList, cfg.key, 100))
+								if (Functions.Buy(ItemInList, cfg.key) || Functions.Buy(ItemInList, cfg.key, 100))
 								{
 									WriteMessage(string.Format("*сокеты* {0} куплен за {1} ({2})", ItemInList.name, t.data.ui_price, ItemInList.price), MessageType.BuyWeapon);
 								}
@@ -330,7 +325,7 @@ namespace MonoTM2
         /// </summary>
         private void SocketsAuth()
 		{
-			string wskey = CLIENT.GetWS(cfg.key);
+			string wskey = Functions.GetWS(cfg.key);
 			WS t = JsonConvert.DeserializeObject<WS>(wskey);
 
 			client.Connect();
@@ -349,7 +344,6 @@ namespace MonoTM2
 		public void find()
 		// async Task find()
 		{
-			Functions bot = new Functions();
 			while (!Close)
 			{
 				try
@@ -357,8 +351,7 @@ namespace MonoTM2
 					for (int i = 0; i < Items.Count; i++)
 					{
 						{
-							// if (CLIENT.Buy(Items[i], cfg.key))
-							if (bot.Buy(Items[i], cfg.key))
+							if (Functions.Buy(Items[i], cfg.key))
 							{
 								WriteMessage(string.Format("*find* {0} куплен. Цена на покупку ({1})", Items[i].name, Items[i].price), MessageType.BuyWeapon);
 							}
@@ -410,8 +403,6 @@ namespace MonoTM2
 			UpdatePriceTimer.Enabled = true;
 			pinPongTimer.Enabled = true;
 			WriteMessage("Таймеры включены", MessageType.Info);
-
-
 		}
 
 		/// <summary>
@@ -419,11 +410,11 @@ namespace MonoTM2
 		/// </summary>
 		private void UpdateDiscount()
 		{
-			var disc = CLIENT.GetDiscounts(cfg.key);
+			var disc = Functions.GetDiscounts(cfg.key);
 			if (disc != 10.01 && disc != 10.02 && disc != 10.03)
 			{
 				cfg.discount = disc;
-				Config.Save(cfg);
+				//Config.Save(cfg);
 			}
 			else
 			{
@@ -452,7 +443,7 @@ namespace MonoTM2
 					//Если предмет добавлен с уведомлений, то его цену прверяем в списке уведомлений
 					if (I.priceCheck == PriceCheck.Notification)
 					{
-						var ans = CLIENT1.GetNotifications(cfg.key);
+						var ans = Functions.GetNotifications(cfg.key);
 						if (ans != null && ans.success)
 						{
 							var item = ans.Notifications.Find(fi => fi.i_classid + "_" + fi.i_instanceid == I.id);
@@ -534,7 +525,7 @@ namespace MonoTM2
 		void QuickOrderF()
 		{
 			//получаем список вещей
-			var QuickItemsList = CLIENT.QList(cfg.key);
+			var QuickItemsList = Functions.QList(cfg.key);
 
 			//проходимся по нашему списку элементов
 			//foreach (var tempItem in Items)
@@ -571,7 +562,7 @@ namespace MonoTM2
 				int i = 0;
 				l.ForEach(x =>
 				{
-					if (CLIENT.QBuy(cfg.key, x.ui_id))
+					if (Functions.QBuy(cfg.key, x.ui_id))
 					{
 						i++;
 					}
@@ -623,7 +614,7 @@ namespace MonoTM2
 
 			if (autoConfirmTrades)
 			{
-				var info = CLIENT1.CountItemsToTransfer(cfg.key);
+				var info = Functions.CountItemsToTransfer(cfg.key);
 				if (info?.getCount > 0)
 					tradeWorker.AcceptTrade(TypeTrade.OUT);
 				if (info?.outCount > 0)
@@ -641,7 +632,7 @@ namespace MonoTM2
 		/// <param name="e"></param>
 		void PingPongTimer(object sender, ElapsedEventArgs e)
 		{
-			CLIENT.Ping(cfg.key);
+		    Functions.Ping(cfg.key);
 			//
 			client.Send("PING");
 			//проверка быстрых покупок
@@ -649,7 +640,7 @@ namespace MonoTM2
 
 			if (autoConfirmTrades)
 			{
-				var info = CLIENT1.CountItemsToTransfer(cfg.key);
+				var info = Functions.CountItemsToTransfer(cfg.key);
 				if (info?.getCount > 0)
 				{
 					tradeWorker.AcceptTrade(TypeTrade.OUT);
@@ -678,7 +669,7 @@ namespace MonoTM2
 		{
 			var itm = new Itm { link = link, price = _price, priceCheck = _check };
 
-			itm.hash = CLIENT.GetHash(itm, cfg.key);
+			itm.hash = Functions.GetHash(itm, cfg.key);
 			//проверяем, нет ли этого предмета в списке
 			var ch = Items.Find(p => p.id == itm.id);
 			if (ch != null)
@@ -753,9 +744,9 @@ namespace MonoTM2
 		{
 			//снятие ордера
 			Items[index].price = 0;
-			CLIENT.ProcessOrder(Items[index], cfg.key);
-			//удаление уведомления
-			CLIENT.Notification(Items[index], cfg.key);
+		    Functions.ProcessOrder(Items[index], cfg.key);
+            //удаление уведомления
+		    Functions.Notification(Items[index], cfg.key);
 			///удаление предмета из списка
 			Items.RemoveAt(index);
 			//сохранение изменений
@@ -824,7 +815,7 @@ namespace MonoTM2
 				string ans;
 				foreach (Itm I in Items)
 				{
-					ans = CLIENT.ProcessOrder(I, cfg.key);
+					ans = Functions.ProcessOrder(I, cfg.key);
 					if (!ans.Contains("error"))
 						Thread.Sleep(cfg.Itimer);
 					else
@@ -862,7 +853,7 @@ namespace MonoTM2
 				string ans;
 				foreach (Itm I in Items)
 				{
-					ans = CLIENT.Notification(I, cfg.key) ?? "error";
+					ans = Functions.Notification(I, cfg.key) ?? "error";
 					if (!ans.Contains("error"))
 						Thread.Sleep(cfg.Itimer);
 					else
@@ -991,17 +982,17 @@ namespace MonoTM2
 
 		public string Status()
 		{
-			if (Find != null)
+			//if (Find != null)
 				return string.Format("Find {0}", Find.ThreadState);
-			else
-				return string.Format("Find {0}", Finding.Status);
+			//else
+				//return string.Format("Find {0}", Finding.Status);
 		}
 
 
 
 		public string GetProfit()
 		{
-			var p = CLIENT.GetProfit(cfg.key);
+			var p = Functions.GetProfit(cfg.key);
 			if (p != -1 && p != -2)
 			{
 				return ("Получено за день " + p / 100.0 + " рублей");
@@ -1118,7 +1109,7 @@ namespace MonoTM2
 			try
 			{
 				int i = 0;
-				var ans = CLIENT1.GetNotifications(cfg.key);
+				var ans = Functions.GetNotifications(cfg.key);
 				if (ans != null && ans.success)
 				{
 					foreach (var itm in ans.Notifications)
@@ -1202,7 +1193,7 @@ namespace MonoTM2
 			}
 			data = data.Remove(data.Length - 1);
 
-			var ans = CLIENT1.MassInfo(cfg.key, data);
+			var ans = Functions.MassInfo(cfg.key, data);
 
 			if(ans.success)
 			{
@@ -1213,7 +1204,7 @@ namespace MonoTM2
 
 					if (findedItem.priceCheck == PriceCheck.Notification)
 					{
-						var ansNotif = CLIENT1.GetNotifications(cfg.key);
+						var ansNotif = Functions.GetNotifications(cfg.key);
 						if ((bool)ansNotif?.success)
 						{
 							var item = ansNotif.Notifications.Find(fi => fi.i_classid + "_" + fi.i_instanceid == findedItem.id);
@@ -1237,10 +1228,10 @@ namespace MonoTM2
 
 			if (minPrice == int.MaxValue)
 			{
-				minPrice = CLIENT.GetMinPrice(itm, cfg.key);
+				minPrice = Functions.GetMinPrice(itm, cfg.key);
 			}
 
-			int averangePrice = CLIENT.GetAverangePrice(itm, cfg.key);
+			int averangePrice = Functions.GetAverangePrice(itm, cfg.key);
 
 			double cost = averangePrice < minPrice ? averangePrice : minPrice;
 
@@ -1278,13 +1269,13 @@ namespace MonoTM2
 	    void setItems(object sender, EventArgs e)
         {
             //Получаем список вещей в инвентаре
-            var inv = CLIENT.GetInv(cfg.key);
+            var inv = Functions.GetInv(cfg.key);
             if (inv.success && inv.dataResult.Count > 0)
             {
                 var discount = 1 - Convert.ToDouble(cfg.discount / 100);
                 int maxItemsPerOfferPrice = 2, maxPosition = 5;
                 //double profit;
-                var history = CLIENT.OperationHistory(DateTimeOffset.Now.AddHours(-4).ToUnixTimeSeconds(),
+                var history = Functions.OperationHistory(DateTimeOffset.Now.AddHours(-4).ToUnixTimeSeconds(),
                     DateTimeOffset.Now.AddHours(+3).ToUnixTimeSeconds(), cfg.key);
 
                 foreach (var itm in inv.dataResult)
@@ -1294,6 +1285,7 @@ namespace MonoTM2
                         && item.h_event == "buy_go"
                         && item.classid == itm.i_classid
                         && item.instanceid == itm.i_instanceid);
+                    //  sb.AppendLine($"Ищем покупки для {itm.i_market_name}");
                     //если в истории не нашли покупку, то выходим
                     if (buyList.Count == 0) continue;
 
@@ -1311,7 +1303,7 @@ namespace MonoTM2
                     var buyPrice = buyList.Max(item => double.Parse(item.paid));
                     var position = 0;
                     //Получаем предложения о продаже
-                    var sellOffers = CLIENT.SellOffers(itm.i_classid, itm.i_instanceid, cfg.key);
+                    var sellOffers = Functions.SellOffers(itm.i_classid, itm.i_instanceid, cfg.key);
 
                     if (sellOffers.success)
                     {
@@ -1319,7 +1311,7 @@ namespace MonoTM2
                         //Максимальная цена: ~ средняя + 10%
                         //чтобы сильно не уйти, если список продаж пустой
                         var exPrice =
-                            (int) (CLIENT.GetAverangePrice(new Itm {id = $"{itm.i_classid}_{itm.i_instanceid}"},
+                            (int) (Functions.GetAverangePrice(new Itm {id = $"{itm.i_classid}_{itm.i_instanceid}"},
                                        cfg.key) * 1.1 + 0.5);
                         int i = 0;
                         for (; i < sellOffers.dataResult.Count; i++)
@@ -1342,7 +1334,7 @@ namespace MonoTM2
                         var recievedMoney = (int) (priceForSet * discount);
                         if (recievedMoney > buyPrice)
                         {
-                            CLIENT.SetPrice(itm, priceForSet, cfg.key);
+                            Functions.SetPrice(itm, priceForSet, cfg.key);
                             WriteMessage($"Выставлен {itm.i_market_hash_name} за {priceForSet} коп.", MessageType.Info);
                         }
                     }
@@ -1353,7 +1345,6 @@ namespace MonoTM2
                 if(inv.errorMessage != null)
                     WriteMessage($"setItems\n{inv.errorMessage}", MessageType.Error);
             }
-            // WriteMessage(sb.ToString(), MessageType.Info);
         }
 
 
@@ -1369,18 +1360,15 @@ namespace MonoTM2
 
 			client.Close();
 
-			// Finding.Wait();
-			// Finding.Dispose();
-
-			CLIENT.DeleteAllOrders(cfg.key);
+		    Functions.DeleteAllOrders(cfg.key);
 
 			foreach (var I in Items)
 			{
-				CLIENT.Notification(I, cfg.key, 1);
+			    Functions.Notification(I, cfg.key, 1);
 				Thread.Sleep(cfg.Itimer);
 			}
 
-			CLIENT.GoOffline(cfg.key);
+		    Functions.GoOffline(cfg.key);
 		}
 	}
 }
