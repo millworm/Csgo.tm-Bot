@@ -44,7 +44,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
-    <Optimize>false</Optimize>
+    <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
@@ -54,8 +54,8 @@
     </DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.10.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.11.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
@@ -73,12 +73,23 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CBot.cs" />
-    <Compile Include="Classes.cs" />
+    <Compile Include="Classes\Classes.cs" />
+    <Compile Include="Classes\GetInv.cs" />
+    <Compile Include="Classes\MassInfo.cs" />
+    <Compile Include="Classes\OperationHistory.cs" />
+    <Compile Include="Classes\PriceCheck.cs" />
+    <Compile Include="Classes\ReturnResult.cs" />
     <Compile Include="Config.cs" />
     <Compile Include="functions.cs" />
+    <Compile Include="InputOutput\ConsoleInputOutput.cs" />
+    <Compile Include="InputOutput\IInputOutput.cs" />
+    <Compile Include="InputOutput\MessageType.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Trades\TradeWorker.cs" />
+    <Compile Include="Steam\Mobile.cs" />
+    <Compile Include="Steam\TradeWorker.cs" />
+    <Compile Include="Classes\AnswerType.cs" />
+    <Compile Include="Test.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="account.maFile">
@@ -120,6 +131,7 @@
       <Name>SteamToolkit</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

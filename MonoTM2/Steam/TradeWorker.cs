@@ -1,19 +1,20 @@
-﻿using System;
-using System.IO;
-using System.Threading;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using SteamAuth;
 using SteamToolkit.Trading;
 using SteamToolkit.Web;
+using System;
+using System.IO;
+using System.Threading;
 
 namespace MonoTM2
 {
-	class TradeWorker
+    class TradeWorker
     {
         IAsyncResult IIncomingTradeResult, IOutgoingTradeResult;
 
-        public event EventHandler OnOutgoingTrade;
+        private static Semaphore _incomingTradeCounter, _outgoingTradeCounter;
 
+        public event EventHandler OnOutgoingTrade, OnIncomingTrade;
 
         private delegate void TradeDelegate();
 
@@ -22,7 +23,7 @@ namespace MonoTM2
         long _timeLastLogin;
         Account _account;
         readonly Web Web = new Web(new SteamWebRequestHandler());
-        Config _config;
+        Config _config = Config.GetConfig();
         EconServiceHandler offerHandler;
         MarketHandler marketHandler;
 
@@ -33,6 +34,7 @@ namespace MonoTM2
 
         public TradeWorker()
         {
+            _incomingTradeCounter = new Semaphore(3, 5);
             _incomingTradeDelegate = IncomingTrade;
             _outgoingTradeDelegate = OutgoingTrade;
 
@@ -48,7 +50,6 @@ namespace MonoTM2
 
             if (File.Exists("config.json"))
             {
-                _config = Config.Reload();
                 if (!string.IsNullOrEmpty(_config.SteamLogin) && !string.IsNullOrEmpty(_config.SteamPassword))
                     Auth();
             }
@@ -64,18 +65,20 @@ namespace MonoTM2
             switch (type)
             {
                 case TypeTrade.IN:
-                    if (IIncomingTradeResult == null || IIncomingTradeResult.IsCompleted)
+                    _incomingTradeDelegate.BeginInvoke(res => OnIncomingTrade?.Invoke(this, null), null);
+                    /*if (IIncomingTradeResult == null || IIncomingTradeResult.IsCompleted)
                     {
                         IIncomingTradeResult = _incomingTradeDelegate.BeginInvoke(null, null);
                         _incomingTradeDelegate.EndInvoke(IIncomingTradeResult);
-                    }
+                    }*/
                     break;
                 case TypeTrade.OUT:
-                    if (IOutgoingTradeResult == null || IOutgoingTradeResult.IsCompleted)
+                    _outgoingTradeDelegate.BeginInvoke(res => OnOutgoingTrade?.Invoke(this, null), null);
+                    /*if (IOutgoingTradeResult == null || IOutgoingTradeResult.IsCompleted)
                     {
                         IOutgoingTradeResult = _outgoingTradeDelegate.BeginInvoke(EventStarter, null);
                         _outgoingTradeDelegate.EndInvoke(IOutgoingTradeResult);
-                    }
+                    }*/
                     break;
                 case TypeTrade.MOBILE:
                     new System.Action(AcceptConfirmations).BeginInvoke(null, null);
@@ -144,6 +147,7 @@ namespace MonoTM2
         /// </summary>
         void IncomingTrade()
         {
+            _incomingTradeCounter.WaitOne();
             try
             {
                 if (accountFileExist)
@@ -158,7 +162,6 @@ namespace MonoTM2
                             if (trade.dir == "in")
                             {
                                 var res = AcceptTrade(Convert.ToUInt32(trade.trade_id), Convert.ToUInt32(trade.bot_id));
-                                Thread.Sleep(2000);
 
                                 AcceptConfirmations();
                             }
@@ -176,7 +179,6 @@ namespace MonoTM2
                             Console.WriteLine("Подтверждаем");
 
                             var res = AcceptTrade(Convert.ToUInt32(offer.trade), Convert.ToUInt32(offer.botid));
-                            Thread.Sleep(2000);
 
                             //Подтверждаем в мобильной версии
                             AcceptConfirmations();
@@ -189,6 +191,10 @@ namespace MonoTM2
                 Console.WriteLine(new string('-', 50));
                 Console.WriteLine($"Message:{ex.Message}\nTarget:{ex.StackTrace}");
                 Console.WriteLine(new string('-', 50));
+            }
+            finally
+            {
+                _incomingTradeCounter.Release();
             }
         }
 
@@ -206,11 +212,7 @@ namespace MonoTM2
                 marketHandler.EligibilityCheck(_account.SteamId, _account.AuthContainer);
 
                 var answer = offerHandler.AcceptTradeOffer(trade_id, bot_id, _account.AuthContainer, "1");
-                if (answer?.TradeId != null)
-                {
-                    return true;
-                }
-                return false;
+                return answer?.TradeId != null || answer.MobileConfirmation || answer.EmailConfirmation;
             }
 
             catch (NullReferenceException)
@@ -240,12 +242,12 @@ namespace MonoTM2
         {
             try
             {
-                _account = Web.RetryDoLogin(TimeSpan.FromSeconds(5), 10, _config.SteamLogin, _config.SteamPassword, _config.SteamMachineAuth);
+                _account = Web.RetryDoLogin(TimeSpan.FromSeconds(5), 1, _config.SteamLogin, _config.SteamPassword, _config.SteamMachineAuth);
 
                 if (!string.IsNullOrEmpty(_account.SteamMachineAuth))
                 {
                     _config.SteamMachineAuth = _account.SteamMachineAuth;
-                    Config.Save(_config);
+                    Config.Save();
                 }
 
                 Console.WriteLine("Авторизован!");
@@ -268,30 +270,30 @@ namespace MonoTM2
         /// Подтверждение в мобильном приложении
         /// </summary>
         /// <param name="sgAccount"></param>
-        void AcceptConfirmations(string nick)
-        {
-            try
-            {
-                _mobileAccount.Session.SteamLogin = _account.FindCookieByName("steamlogin").Value;
-                _mobileAccount.Session.SteamLoginSecure = _account.FindCookieByName("steamloginsecure").Value;
+        //void AcceptConfirmations(string nick)
+        //{
+        //    try
+        //    {
+        //        _mobileAccount.Session.SteamLogin = _account.FindCookieByName("steamlogin").Value;
+        //        _mobileAccount.Session.SteamLoginSecure = _account.FindCookieByName("steamloginsecure").Value;
 
-                _mobileAccount.AcceptConfirmation(new Confirmation() { });
-                foreach (Confirmation confirmation in _mobileAccount.FetchConfirmations())
-                {
-                    //Подтверждение трейдов не с маркета
+        //        _mobileAccount.AcceptConfirmation(new Confirmation() { });
+        //        foreach (Confirmation confirmation in _mobileAccount.FetchConfirmations())
+        //        {
+        //            //Подтверждение трейдов не с маркета
 
-                   // if (confirmation.Description.ToLower().Contains(nick.ToLower()))
-                        if (_mobileAccount.AcceptConfirmation(confirmation))
-                        {
-                            Console.WriteLine("Подтвержден в приложении");
-                        }
-                }
-            }
-            catch
-            {
+        //           // if (confirmation.Description.ToLower().Contains(nick.ToLower()))
+        //                if (_mobileAccount.AcceptConfirmation(confirmation))
+        //                {
+        //                    Console.WriteLine("Подтвержден в приложении");
+        //                }
+        //        }
+        //    }
+        //    catch
+        //    {
 
-            }
-        }
+        //    }
+        //}
 
         //Подтверждение трейдов не с маркета
         void AcceptConfirmations()
@@ -301,7 +303,7 @@ namespace MonoTM2
                 _mobileAccount.Session.SteamLogin = _account.FindCookieByName("steamlogin").Value;
                 _mobileAccount.Session.SteamLoginSecure = _account.FindCookieByName("steamloginsecure").Value;
 
-                _mobileAccount.AcceptConfirmation(new Confirmation() { });
+                //_mobileAccount.AcceptConfirmation(new Confirmation(0, 0, 1, 0));
                 foreach (Confirmation confirmation in _mobileAccount.FetchConfirmations())
                 {
                     if (_mobileAccount.AcceptConfirmation(confirmation))
@@ -313,18 +315,6 @@ namespace MonoTM2
             catch
             {
 
-            }
-        }
-
-        void EventStarter(IAsyncResult res)
-        {
-            if (res.IsCompleted)
-            {
-                try
-                {
-                    OnOutgoingTrade?.Invoke(this, null);
-                }
-                catch { }
             }
         }
     }

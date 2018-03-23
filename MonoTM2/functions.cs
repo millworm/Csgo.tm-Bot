@@ -8,6 +8,7 @@ using System.Net;
 using System.Text;
 using System.Reflection;
 using System.Linq;
+using MonoTM2.Classes;
 
 namespace MonoTM2
 {
@@ -251,7 +252,7 @@ namespace MonoTM2
         //
 
         //Веб запрос
-        public static string Web(string server, int timeout = 500, string list="")
+        public static string Web(string server, int timeout = 1000, string list="")
         {
             try
             {
@@ -289,7 +290,7 @@ namespace MonoTM2
                         Console.ResetColor();
                         break;
                 }
-                return "{\"id\":\"False\"}";
+                return "{\"success\":\"False\"}";
             }
         }
 
@@ -421,31 +422,43 @@ namespace MonoTM2
         /// </summary>
         /// <param name="item">Предмет</param>
         /// <param name="key">api ключ</param>
-        /// <param name="price">1 если хотим удалить уведомление</param>
-        /// <returns>возвращает строку true, если все прошло без ошибок, иначе текст ошибки</returns>
-        public static string Notification(Itm item, string key, int price = 0)
+        /// <param name="delNotif">Удалить уведомление</param>
+        public static ReturnResult<bool> Notification(Itm item, string key, bool delNotif)
         {
+            var result = new ReturnResult<bool>();
+            string answerStr ="";
             try
             {
                 //https://market.csgo.com/api/UpdateNotification/[classid]/[instanceid]/[price]?key=[your_secret_key]
-                string answer;
-                if (price == 0)
+                if (delNotif)
                 {
-                    answer = Web(Host + $"/api/UpdateNotification/{item.id.Replace('_', '/')}/{item.price * 100}/?key={key}");
+                    answerStr = Web(Host + $"/api/UpdateNotification/{item.id.Replace('_', '/')}/0/?key={key}");
                 }
                 else
                 {
-                    answer = Web(Host + $"/api/UpdateNotification/{item.id.Replace('_', '/')}/0/?key={key}");
+                    answerStr = Web(Host + $"/api/UpdateNotification/{item.id.Replace('_', '/')}/{item.price * 100}/?key={key}");
                 }
 
                 var pr = new { success = false, error = "" };
-                var inf = JsonConvert.DeserializeAnonymousType(answer, pr);
+                var inf = JsonConvert.DeserializeAnonymousType(answerStr, pr);
 
-                return inf.success ? inf.success.ToString() : inf.error;
+                result.success = inf.success;
+
+                if (!inf.success)
+                {
+                    result.errorMessage = result.errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{inf.error}\nData:{answerStr}\n{_line}";
+                }
+
+                return result;
             }
             catch (Exception ex)
             {
-                return ex.Message;
+                return new ReturnResult<bool>
+                {
+                    success = false,
+                    errorMessage =
+                        $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}"
+                };
             }
         }
 
@@ -556,14 +569,14 @@ namespace MonoTM2
                 var items = JsonConvert.DeserializeObject<Trades>(resp);
                 foreach (var item in items.items)
                 {
-                    if (item.ui_status == "4")
+                    switch (item.ui_status)
                     {
-                        returnVariable.getCount++;
-                    }
-
-                    if (item.ui_status == "2")
-                    {
-                        returnVariable.outCount++;
+                        case "4":
+                            returnVariable.getCount++;
+                            break;
+                        case "2":
+                            returnVariable.outCount++;
+                            break;
                     }
                 }
                 return returnVariable;
@@ -577,27 +590,42 @@ namespace MonoTM2
         /// <summary>
         /// Получить список включенных уведомлений о изменении цены
         /// </summary>
-        /// <param name="key">Api key</param>
-        public static CNotifications GetNotifications(string key)
+        public static ReturnResult<List<NotificationsItems>> GetNotifications(string key)
         {
             //https://market.csgo.com/api/GetNotifications/?key=[your_secret_key]
+            var result = new ReturnResult<List<NotificationsItems>>();
+            string answerStr = Web(Host + "/api/GetNotifications/?key=" + key);
             try
             {
-                string answer = Web(Host + "/api/GetNotifications/?key=" + key);
-                //var pr = new { success = false, Notifications = new { i_classid = "", i_instanceid ="", n_val="" }, error = "" };
-                var inf = JsonConvert.DeserializeObject<CNotifications>(answer);
-				return inf.success ? inf : null;
+                var desirAns = JsonConvert.DeserializeObject<CNotifications>(answerStr);
+
+                result.success = desirAns.success;
+
+                if (desirAns.success)
+                {
+                    result.dataResult = desirAns.Notifications;
+                }
+                else
+                {
+                    result.errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{desirAns.error}\nData:{answerStr}\n{_line}";
+                }
+
+                return result;
             }
-            catch
+            catch(Exception ex)
             {
-                return null;
+                return new ReturnResult<List<NotificationsItems>>
+                {
+                    success = false,
+                    errorMessage =
+                        $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}"
+                };
             }
         }
 
         /// <summary>
         /// Вся информация о предметах в одном месте через POST запрос.
         /// </summary>
-        /// <param name="key">Ключ</param>
         /// <param name="data">list — classid_instanceid,classid_instanceid,classid_instanceid,classid_instanceid,...</param>
         /// <param name="sell">
         /// 0 - Не получать предложения о продаже
@@ -621,19 +649,19 @@ namespace MonoTM2
         {
             //https://market.csgo.com/api/MassInfo/[SELL]/[BUY]/[HISTORY]/[INFO]?key=[your_secret_key]
             var result = new ReturnResult<List<MassInfoResult>>();
-            var answer = Web($"{Host}/api/MassInfo/{sell}/{buy}/{history}/{info}/?key={key}", timeout: 25000, list: data);
+            var answer = Web($"{Host}/api/MassInfo/{sell}/{buy}/{history}/{info}/?key={key}", list: data);
             try
             {
-                var inf = JsonConvert.DeserializeObject<MassInfo>(answer);
-                if (inf.success)
+                var desirAns = JsonConvert.DeserializeObject<MassInfo>(answer);
+
+                result.success = desirAns.success;
+                if (desirAns.success)
                 {
-                    result.success = true;
-                    result.dataResult = inf.results;
+                    result.dataResult = desirAns.results;
                 }
                 else
                 {
-                    result.success = false;
-                    result.errorMessage = inf.error;
+                    result.errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{desirAns.error}\nData:{answer}\n{_line}";
                 }
 				return result;
             }
@@ -642,7 +670,7 @@ namespace MonoTM2
                 return new ReturnResult<List<MassInfoResult>>
                 {
                     success = false,
-                    errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answer}\nTarget:{ex.StackTrace}\n{_line}"
+                    errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answer}\nTarget:{ex.StackTrace}\n{_line}"
                 };
             }
         }
@@ -657,17 +685,17 @@ namespace MonoTM2
             var answerStr = Web($"{Host}/api/GetInv/?key={key}", 2000);
             try
             {
-                var desirAnswer = JsonConvert.DeserializeObject<GetInv>(answerStr);
+                var desirAns = JsonConvert.DeserializeObject<GetInv>(answerStr);
 
-                if (desirAnswer.success && desirAnswer.data != null)
+                result.success = desirAns.success;
+
+                if (desirAns.success && desirAns.data != null)
                 {
-                    result.success = true;
-                    result.dataResult = desirAnswer.data;
+                    result.dataResult = desirAns.data;
                 }
                 else
                 {
-                    result.success = false;
-                    result.errorMessage = desirAnswer.error;
+                    result.errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{desirAns.error}\nData:{answerStr}\n{_line}";
                 }
 
                 return result;
@@ -677,7 +705,7 @@ namespace MonoTM2
                 return new ReturnResult<List<GetInvDatum>>
                 {
                     success = false,
-                    errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.StackTrace}\n{_line}"
+                    errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.StackTrace}\n{_line}"
                 };
             }
         }
@@ -699,14 +727,12 @@ namespace MonoTM2
 
                 var desirAns = JsonConvert.DeserializeAnonymousType(answerStr, type);
 
-                if (desirAns.success)
-                {
-                    result.success = true;
-                }
-                else
+                result.success = desirAns.success;
+
+                if (!desirAns.success)
                 {
                     result.success = false;
-                    result.errorMessage = desirAns.error;
+                    result.errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{desirAns.error}\nData:{answerStr}\n{_line}";
                 }
                     
                 return result;
@@ -715,7 +741,7 @@ namespace MonoTM2
             {
                 return new ReturnResult<bool>{
                     success = false,
-                    errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}" 
+                    errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}" 
                 };
             }
         }
@@ -733,15 +759,15 @@ namespace MonoTM2
                 var type = new {success = false, error = "", offers = new List<Offer>(), best_offer = ""};
                 var desirAns = JsonConvert.DeserializeAnonymousType(answerStr, type);
 
+                result.success = desirAns.success;
                 if (desirAns.success && desirAns.offers != null)
                 {
-                    result.success = true;
+
                     result.dataResult = desirAns.offers;
                 }
                 else
                 {
-                    result.success = false;
-                    result.errorMessage = desirAns.error;
+                    result.errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{desirAns.error}\nData:{answerStr}\n{_line}";
                 }
 
                 return result;
@@ -769,16 +795,17 @@ namespace MonoTM2
             try
             {
                 var pr = new {success = false, history = new List<OperationHistory>(), error = ""};
-                var inf = JsonConvert.DeserializeAnonymousType(answerStr, pr);
-                if (inf.success && inf.history != null)
+                var desirAns = JsonConvert.DeserializeAnonymousType(answerStr, pr);
+
+                result.success = desirAns.success;
+
+                if (desirAns.success && desirAns.history != null)
                 {
-                    result.success = true;
-                    result.dataResult = inf.history;
+                    result.dataResult = desirAns.history;
                 }
                 else
                 {
-                    result.success = false;
-                    result.errorMessage = inf.error;
+                    result.errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{desirAns.error}\nData:{answerStr}\n{_line}";
                 }
                 return result;
             }

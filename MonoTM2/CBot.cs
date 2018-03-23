@@ -1,25 +1,20 @@
-﻿
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Timers;
-using WebSocketSharp;
-using SteamToolkit.Configuration;
-using SteamToolkit.Trading;
-using SteamToolkit.Web;
-using SteamAuth;
-using LoginResult = SteamAuth.LoginResult;
 using System.Linq;
-using System.Diagnostics;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
+using System.Threading;
+using System.Timers;
+using MonoTM2.Classes;
+using MonoTM2.InputOutput;
+using MonoTM2.Steam;
+using WebSocketSharp;
 
 namespace MonoTM2
 {
-	public class CBot : IDisposable
+    public class CBot : IDisposable
 	{
 		bool autoConfirmTrades, Close, accountFileExist;
 
@@ -44,20 +39,9 @@ namespace MonoTM2
 
 		public void Loader()
 		{
-			// AcceptTradeAction = AcceptTrades;
-			//загрузка настроек
-			if (!File.Exists("config.json"))
-			{
-				cfg = new Config();
-
-				var mm = Enum.GetValues(typeof(MessageType));
-				foreach (var it in mm)
-				{
-					cfg.Messages.Add((MessageType)it, true);
-				}
-			}
-			else
-				cfg = Config.Reload();
+            // AcceptTradeAction = AcceptTrades;
+            //загрузка конфига
+            cfg = Config.GetConfig();
 
 			if (!String.IsNullOrEmpty(cfg.SteamLogin))
 			{
@@ -81,17 +65,16 @@ namespace MonoTM2
 			}
 			else
 			{
-				Config.Save(cfg);
+				//Config.Save();
 
-				Console.WriteLine("Заполните config.json для автоматического получения вещей");
-
+				ConsoleInputOutput.OutputMessage("Заполните config.json для автоматического получения вещей");
 			}
-
 #if !DEBUG
-			tradeWorker = new TradeWorker();
+            tradeWorker = new TradeWorker();
             //закомментить, если не нужно автовыставление
             //работает еще в демо режиме
-            tradeWorker.OnOutgoingTrade += setItems;
+            tradeWorker.OnOutgoingTrade += SetItems;
+		    tradeWorker.OnIncomingTrade += CheckOffers;
 #endif
             CallbackUpdater = CorrectOrdersAndNotifications;
 			if (cfg.MassUpdate)
@@ -109,11 +92,12 @@ namespace MonoTM2
 			if (b.Exists)
 			{
 				FileStream fstream = File.Open("csgotmitems.dat", FileMode.Open);
-				BinaryFormatter binaryFormatter = new BinaryFormatter();
+			    BinaryFormatter binaryFormatter = new BinaryFormatter();
 				Items = (List<Itm>)binaryFormatter.Deserialize(fstream);
 				fstream.Close();
 				Items.Sort((i1, i2) => i1.name.CompareTo(i2.name));
-			}
+			    Items.ForEach(i => i.price = 0);
+            }
 
 			if (cfg.Messages.Count == 0 || cfg.Messages.Count != Enum.GetNames(typeof(MessageType)).Length)
 			{
@@ -127,8 +111,7 @@ namespace MonoTM2
 					catch { }
 				}
 
-				Config.Save(cfg);
-
+				Config.Save();
 			}
 
 			//таймер обновления цен
@@ -329,13 +312,13 @@ namespace MonoTM2
 			WS t = JsonConvert.DeserializeObject<WS>(wskey);
 
 			client.Connect();
-			if (t.error == null && t.wsAuth != null)
-			{
-				client.Send(t.wsAuth);
-				client.Send("newitems_go");
-			}
-			else
-				Console.WriteLine(t.error);
+		    if (t.error == null && t.wsAuth != null)
+		    {
+		        client.Send(t.wsAuth);
+		        client.Send("newitems_go");
+		    }
+		    else
+		        WriteMessage(t.error, MessageType.Error);
 		}
 
 		/// <summary>
@@ -384,6 +367,8 @@ namespace MonoTM2
 
 			WriteMessage("Цены скорректированы", MessageType.Info);
 
+            //Говорим, что мы подключились
+		    Functions.Ping(cfg.key);
 			//проверка быстрых покупок
 			QuickOrderAction.BeginInvoke(null, null);
 			//запуск поиска
@@ -436,17 +421,16 @@ namespace MonoTM2
 		{
 			try
 			{
-				double Averange, MinPrice, Discount, Cost;
-				Discount = 1 - Convert.ToDouble(cfg.discount / 100);
+			    double Discount = 1 - Convert.ToDouble(cfg.discount / 100);
 				foreach (Itm I in Items)
 				{
-					//Если предмет добавлен с уведомлений, то его цену прверяем в списке уведомлений
+					//Если предмет добавлен с уведомлений, то его цену проверяем в списке уведомлений
 					if (I.priceCheck == PriceCheck.Notification)
 					{
 						var ans = Functions.GetNotifications(cfg.key);
 						if (ans != null && ans.success)
 						{
-							var item = ans.Notifications.Find(fi => fi.i_classid + "_" + fi.i_instanceid == I.id);
+							var item = ans.dataResult.Find(fi => fi.i_classid + "_" + fi.i_instanceid == I.id);
 							if (item != null)
 							{
 								I.price = Convert.ToInt32(item.n_val) / 100.0;
@@ -456,58 +440,8 @@ namespace MonoTM2
 					else
 					{
 						//проверяем остальные вещи
-
 						Thread.Sleep(cfg.Itimer);
-						// new System.Action(() => Console.Write("\r{0}/{1} ", ++count, Items.Count)).BeginInvoke(null, null);
-
 						UpdateItemPrice(I);
-						/*MinPrice = Convert.ToDouble(CLIENT.GetMinPrice(I, cfg.key));
-
-						if (MinPrice == -1)
-						{
-							MinPrice = Convert.ToDouble(CLIENT.GetMinPrice(I, cfg.key));
-							if (MinPrice == -1)
-								continue;
-						}
-
-						Averange = Convert.ToDouble(CLIENT.GetAverangePrice(I, cfg.key));
-
-						if (Averange < MinPrice)
-						{
-							Cost = Averange;
-						}
-						else
-						{
-							Cost = MinPrice;
-						}
-
-						//если у предмета выставлена персональная прибыль, то используем ее, а не общую
-						double profit;
-						if (I.profit != 0)
-						{
-							profit = I.profit;
-						}
-						else
-						{
-							profit = cfg.price;
-						}
-
-						if (Cost > 20000)
-						{
-							I.price = Math.Round((Cost * Discount - profit * 2) / 100.0, 2);
-							continue;
-						}
-						if (Cost > 10000)
-						{
-							I.price = Math.Round((Cost * Discount - profit) / 100.0, 2);
-							continue;
-						}
-						else
-						{
-							I.price = Math.Round((Cost * Discount - profit) / 100.0, 2);
-							continue;
-						}*/
-
 					}
 				}
 
@@ -586,7 +520,7 @@ namespace MonoTM2
 			//сохраняем настройки
 			if (S)
 			{
-				Config.Save(cfg);
+				Config.Save();
 			}
 			else
 			{
@@ -621,7 +555,7 @@ namespace MonoTM2
 					tradeWorker.AcceptTrade(TypeTrade.IN);
 				//AcceptTradeAction.Invoke();
 				//AcceptMobileOrdersAction.Invoke();
-			    setItems(this, null);
+			    SetItems(this, null);
 			}
 		}
 
@@ -640,15 +574,7 @@ namespace MonoTM2
 
 			if (autoConfirmTrades)
 			{
-				var info = Functions.CountItemsToTransfer(cfg.key);
-				if (info?.getCount > 0)
-				{
-					tradeWorker.AcceptTrade(TypeTrade.OUT);
-				}
-				if (info?.outCount > 0)
-				{
-					tradeWorker.AcceptTrade(TypeTrade.IN);
-				}
+			    CheckOffers(sender, e);
 			}
 		}
 
@@ -746,7 +672,7 @@ namespace MonoTM2
 			Items[index].price = 0;
 		    Functions.ProcessOrder(Items[index], cfg.key);
             //удаление уведомления
-		    Functions.Notification(Items[index], cfg.key);
+		    Functions.Notification(Items[index], cfg.key,true);
 			///удаление предмета из списка
 			Items.RemoveAt(index);
 			//сохранение изменений
@@ -757,7 +683,7 @@ namespace MonoTM2
 		public void SetUpdateTimer(string time)
 		{
 			cfg.UpdatePriceTimerTime = Convert.ToInt16(time);
-			Config.Save(cfg);
+		    Config.Save();
 			UpdatePriceTimer.Interval = cfg.UpdatePriceTimerTime * 60 * 1000;
 		}
 
@@ -848,26 +774,21 @@ namespace MonoTM2
 		/// </summary>
 		void CorrectNotifications()
 		{
-			try
+		    ReturnResult<bool> answer = null;
+		    try
 			{
-				string ans;
-				foreach (Itm I in Items)
-				{
-					ans = Functions.Notification(I, cfg.key) ?? "error";
-					if (!ans.Contains("error"))
-						Thread.Sleep(cfg.Itimer);
-					else
-					{
-#if DEBUG
-                        System.Diagnostics.Debug.WriteLine(ans);
-#endif
-					}
-				}
+			    for (int i = 0; i < Items.Count; i++)
+			    {
+			        answer = Functions.Notification(Items[i], cfg.key,false);
+
+			        if (answer.success)
+			            Thread.Sleep(cfg.Itimer);
+			    }
 				WriteMessage("Обновлены уведомления", MessageType.Timer);
 			}
 			catch (Exception ex)
 			{
-				WriteMessage(string.Format("[CorrectNotifications] {0}", ex.Message), MessageType.Error);
+				WriteMessage($"[CorrectNotifications] {ex.Message} {answer.errorMessage}", MessageType.Error);
 			}
 		}
 
@@ -878,106 +799,8 @@ namespace MonoTM2
 		/// <param name="msgType">Тип сообщения</param>
 		void WriteMessage(string msg, MessageType msgType)
 		{
-			switch (msgType)
-			{
-				case MessageType.BuyWeapon:
-					if (cfg.Messages[MessageType.BuyWeapon])
-					{
-						new System.Action(() =>
-						{
-							Console.ResetColor();
-							Console.Write(string.Format("[{0}] ", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00:") + DateTime.Now.Second.ToString("00")));
-							Console.ForegroundColor = ConsoleColor.Green;
-							Console.WriteLine(msg);
-							Console.ResetColor();
-						}).Invoke();
-					}
-					break;
-
-				case MessageType.Error:
-					if (cfg.Messages[MessageType.Error])
-					{
-						new System.Action(() =>
-						{
-							Console.ResetColor();
-							Console.Write(string.Format("[{0}] ", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00:") + DateTime.Now.Second.ToString("00")));
-							Console.ForegroundColor = ConsoleColor.Red;
-							Console.WriteLine(msg);
-							Console.ResetColor();
-						}).Invoke();
-					}
-					break;
-
-				case MessageType.GetWeapon:
-					if (cfg.Messages[MessageType.GetWeapon])
-					{
-						new System.Action(() =>
-						{
-							Console.ResetColor();
-							Console.Write(string.Format("[{0}] ", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00:") + DateTime.Now.Second.ToString("00")));
-							Console.ForegroundColor = ConsoleColor.Cyan;
-							Console.WriteLine(msg);
-							Console.ResetColor();
-						}).Invoke();
-					}
-					break;
-
-				case MessageType.GiveWeapon:
-					if (cfg.Messages[MessageType.GiveWeapon])
-					{
-						new System.Action(() =>
-						{
-							Console.ResetColor();
-							Console.Write(string.Format("[{0}] ", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00:") + DateTime.Now.Second.ToString("00")));
-							Console.ForegroundColor = ConsoleColor.Magenta;
-							Console.WriteLine(msg);
-							Console.ResetColor();
-						}).Invoke();
-					}
-					break;
-
-				case MessageType.Info:
-					if (cfg.Messages[MessageType.Info])
-					{
-						new System.Action(() =>
-						{
-							Console.ResetColor();
-							Console.Write(string.Format("[{0}] ", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00:") + DateTime.Now.Second.ToString("00")));
-							Console.ForegroundColor = ConsoleColor.Gray;
-							Console.WriteLine(msg);
-							Console.ResetColor();
-						}).Invoke();
-					}
-					break;
-
-				case MessageType.Socket:
-					if (cfg.Messages[MessageType.Socket])
-					{
-						new System.Action(() =>
-						{
-							Console.ResetColor();
-							Console.Write(string.Format("[{0}] ", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00:") + DateTime.Now.Second.ToString("00")));
-							Console.ForegroundColor = ConsoleColor.Gray;
-							Console.WriteLine(msg);
-							Console.ResetColor();
-						}).Invoke();
-					}
-					break;
-
-				case MessageType.Timer:
-					if (cfg.Messages[MessageType.Timer])
-					{
-						new System.Action(() =>
-						{
-							Console.ResetColor();
-							Console.Write(string.Format("[{0}] ", DateTime.Now.Hour.ToString("00:") + DateTime.Now.Minute.ToString("00:") + DateTime.Now.Second.ToString("00")));
-							Console.ForegroundColor = ConsoleColor.Blue;
-							Console.WriteLine(msg);
-							Console.ResetColor();
-						}).Invoke();
-					}
-					break;
-			}
+		    if (cfg.IsEnabledMessage(msgType))
+		        ConsoleInputOutput.OutputMessage(msg, msgType);
 		}
 
 		public string Status()
@@ -1003,102 +826,7 @@ namespace MonoTM2
 			}
 		}
 
-		private void SteamAuthLogin()
-		{
-			var authLogin = new UserLogin(cfg.SteamLogin, cfg.SteamPassword);
-			LoginResult result;
-			do
-			{
-				result = authLogin.DoLogin();
-				switch (result)
-				{
-					case LoginResult.NeedEmail:
-						Console.Write("An email was sent to this account's address, please enter the code here to continue: ");
-						authLogin.EmailCode = Console.ReadLine();
-						break;
-					case LoginResult.NeedCaptcha:
-						Console.WriteLine("https://steamcommunity.com/public/captcha.php?gid=" + authLogin.CaptchaGID);
-						Console.Write("Please enter the captcha that just opened up on your default browser: ");
-						authLogin.CaptchaText = Console.ReadLine();
-						break;
-					case LoginResult.Need2FA:
-						Console.Write("Please enter in your authenticator code: ");
-						authLogin.TwoFactorCode = Console.ReadLine();
-						break;
-					default:
-						throw new Exception("Case was not accounted for. Case: " + result);
-				}
-			} while (result != LoginResult.LoginOkay);
-
-			AuthenticatorLinker linker = new AuthenticatorLinker(authLogin.Session);
-			Console.Write("Please enter the number you wish to associate this account in the format +1XXXXXXXXXX where +1 is your country code, leave blank if no new number is desired: ");
-
-			string phoneNumber = Console.ReadLine();
-			if (string.IsNullOrWhiteSpace(phoneNumber)) phoneNumber = null;
-			linker.PhoneNumber = phoneNumber;
-
-			AuthenticatorLinker.LinkResult linkResult = linker.AddAuthenticator();
-			if (linkResult != AuthenticatorLinker.LinkResult.AwaitingFinalization)
-			{
-				Console.WriteLine("Could not add authenticator: " + linkResult);
-				Console.WriteLine(
-					"If you attempted to link an already linked account, please tell FatherFoxxy to get off his ass and implement the new stuff.");
-				return;
-			}
-
-			if (!SaveMobileAuth(linker))
-			{
-				Console.WriteLine("Issue saving auth file, link operation abandoned.");
-				return;
-			}
-
-			Console.WriteLine(
-				"You should have received an SMS code, please input it here. If the code does not arrive, please input a blank line to abandon the operation.");
-			AuthenticatorLinker.FinalizeResult finalizeResult;
-			do
-			{
-				Console.Write("SMS Code: ");
-				string smsCode = Console.ReadLine();
-				if (string.IsNullOrWhiteSpace(smsCode)) return;
-				finalizeResult = linker.FinalizeAddAuthenticator(smsCode);
-
-			} while (finalizeResult != AuthenticatorLinker.FinalizeResult.BadSMSCode);
-		}
-
-		private bool SaveMobileAuth(AuthenticatorLinker linker)
-		{
-			try
-			{
-				string sgFile = JsonConvert.SerializeObject(linker.LinkedAccount, Formatting.Indented);
-				const string fileName = "account.maFile";
-				File.WriteAllText(fileName, sgFile);
-			}
-			catch (Exception)
-			{
-				return false;
-			}
-			return true;
-		}
-
-		internal void CreateAuth()
-		{
-			while (!File.Exists("account.maFile"))
-				SteamAuthLogin();
-			var sgAccount = JsonConvert.DeserializeObject<SteamGuardAccount>(File.ReadAllText("account.maFile"));
-		}
-
-		internal void GenerateGuardCode()
-		{
-			if (accountFileExist)
-			{
-				var sgAccount = JsonConvert.DeserializeObject<SteamGuardAccount>(File.ReadAllText("account.maFile"));
-				Console.WriteLine(sgAccount.GenerateSteamGuardCode());
-			}
-			else
-			{
-				Console.WriteLine("File not exist!");
-			}
-		}
+		
 		//
 
 		/// <summary>
@@ -1110,9 +838,9 @@ namespace MonoTM2
 			{
 				int i = 0;
 				var ans = Functions.GetNotifications(cfg.key);
-				if (ans != null && ans.success)
+				if (ans.success)
 				{
-					foreach (var itm in ans.Notifications)
+					foreach (var itm in ans.dataResult)
 					{
 						var haveInItems = Items.Find(item => item.id == itm.i_classid + "_" + itm.i_instanceid);
 						if (haveInItems == null)
@@ -1186,54 +914,71 @@ namespace MonoTM2
 		/// </summary>
 		private void MassUpdate()
 		{
-			string data = "";
-			foreach (var itm in Items)
-			{
-				data += itm.id + ",";
-			}
-			data = data.Remove(data.Length - 1);
+		    int iterationsCount = Items.Count / 100;
+		    var data = new StringBuilder();
+		    for (int j = 0; j <= iterationsCount; j++)
+		    {
+		        data.Clear();
+                var limit = Items.Count < 100 ? Items.Count : 2 * j * 100;
 
-			var ans = Functions.MassInfo(cfg.key, data);
+                for (int i = j * 100; i < limit; i++)
+		        {
+		            data.Append(Items[i].id);
+		            data.Append(",");
+                }
 
-			if(ans.success)
-			{
-				foreach (var itm in ans.dataResult)
-				{
-					var id = itm.classid + "_" + itm.instanceid;
-					var findedItem = Items.Find(item => item.id == id);
+		        data.Remove(data.Length - 1, 1);
 
-					if (findedItem.priceCheck == PriceCheck.Notification)
-					{
-						var ansNotif = Functions.GetNotifications(cfg.key);
-						if ((bool)ansNotif?.success)
-						{
-							var item = ansNotif.Notifications.Find(fi => fi.i_classid + "_" + fi.i_instanceid == findedItem.id);
-							if (item != null)
-							{
-								findedItem.price = Convert.ToInt32(item.n_val) / 100.0;
-							}
-						}
-					}
-					else
-					{
-						UpdateItemPrice(findedItem, itm.sellOffers.bestOffer);
-					}
-				}
-			}
+		        var ans = Functions.MassInfo(cfg.key, data.ToString());
+
+		        if (!ans.success) ans = Functions.MassInfo(cfg.key, data.ToString());
+
+		        if (ans.success)
+		        {
+		            foreach (var itm in ans.dataResult)
+		            {
+		                var id = itm.classid + "_" + itm.instanceid;
+		                var findedItem = Items.Find(item => item.id == id);
+
+		                if (findedItem.priceCheck == PriceCheck.Notification)
+		                {
+		                    var ansNotif = Functions.GetNotifications(cfg.key);
+		                    if (ansNotif.success)
+		                    {
+		                        var item = ansNotif.dataResult.Find(
+		                            fi => fi.i_classid + "_" + fi.i_instanceid == findedItem.id);
+		                        if (item != null)
+		                        {
+		                            findedItem.price = Convert.ToInt32(item.n_val) / 100.0;
+		                        }
+		                    }
+		                }
+		                else
+		                {
+		                    UpdateItemPrice(findedItem, itm.sellOffers?.bestOffer);
+		                }
+		            }
+		        }
+		        else
+		        {
+		            if (ans.errorMessage != null)
+		                WriteMessage(ans.errorMessage, MessageType.Error);
+		        }
+		    }
 		}
 
-		private void UpdateItemPrice(Itm itm, int minPrice = int.MaxValue)
+		private void UpdateItemPrice(Itm itm,  int? minPrice = null)
 		{
 			var discount = 1 - Convert.ToDouble(cfg.discount / 100);
 
-			if (minPrice == int.MaxValue)
+			if (minPrice == null)
 			{
 				minPrice = Functions.GetMinPrice(itm, cfg.key);
 			}
 
 			int averangePrice = Functions.GetAverangePrice(itm, cfg.key);
 
-			double cost = averangePrice < minPrice ? averangePrice : minPrice;
+			int cost = averangePrice < minPrice ? averangePrice : (int)minPrice;
 
 			//если у предмета выставлена персональная прибыль, то используем ее, а не общую
 			double profit;
@@ -1266,14 +1011,14 @@ namespace MonoTM2
         /// </summary>
         /// <param name="maxItemsPerOfferPrice">Максимальное число вещей за одну цену</param>
         /// <param name="maxPosition">Максимальная позиция для выставления</param>
-	    void setItems(object sender, EventArgs e)
+	    public void SetItems(object sender, EventArgs e)
         {
             //Получаем список вещей в инвентаре
             var inv = Functions.GetInv(cfg.key);
+            inv = !inv.success && inv.errorMessage.IndexOf("обновите", StringComparison.InvariantCultureIgnoreCase) == -1 ? inv : Functions.GetInv(cfg.key);
             if (inv.success && inv.dataResult.Count > 0)
             {
                 var discount = 1 - Convert.ToDouble(cfg.discount / 100);
-                int maxItemsPerOfferPrice = 2, maxPosition = 5;
                 //double profit;
                 var history = Functions.OperationHistory(DateTimeOffset.Now.AddHours(-4).ToUnixTimeSeconds(),
                     DateTimeOffset.Now.AddHours(+3).ToUnixTimeSeconds(), cfg.key);
@@ -1283,9 +1028,9 @@ namespace MonoTM2
                     var buyList = history.dataResult.FindAll(item =>
                         item.stage == "2"
                         && item.h_event == "buy_go"
-                        && item.classid == itm.i_classid
-                        && item.instanceid == itm.i_instanceid);
-                    //  sb.AppendLine($"Ищем покупки для {itm.i_market_name}");
+                        && (item.classid == itm.i_classid && item.instanceid == itm.i_instanceid 
+                            || item.market_hash_name == itm.i_market_hash_name));
+
                     //если в истории не нашли покупку, то выходим
                     if (buyList.Count == 0) continue;
 
@@ -1301,52 +1046,84 @@ namespace MonoTM2
                     //}
 
                     var buyPrice = buyList.Max(item => double.Parse(item.paid));
-                    var position = 0;
+
                     //Получаем предложения о продаже
-                    var sellOffers = Functions.SellOffers(itm.i_classid, itm.i_instanceid, cfg.key);
+                    var sellOffers = Functions.SellOffers(buyList[0].classid, buyList[0].instanceid, cfg.key);
 
-                    if (sellOffers.success)
+                    if (!sellOffers.success) continue;
+                    var priceForSet = getPriceForSet(
+                        new Itm {id = $"{buyList[0].classid}_{buyList[0].instanceid}"},
+                        sellOffers.dataResult,
+                        buyPrice);
+
+                    // var recievedMoney = (int)(priceForSet * discount - profit);
+                    var recievedMoney = (int)(priceForSet * discount);
+                    if (recievedMoney > buyPrice)
                     {
-                        var currentPosition = 0;
-                        //Максимальная цена: ~ средняя + 10%
-                        //чтобы сильно не уйти, если список продаж пустой
-                        var exPrice =
-                            (int) (Functions.GetAverangePrice(new Itm {id = $"{itm.i_classid}_{itm.i_instanceid}"},
-                                       cfg.key) * 1.1 + 0.5);
-                        int i = 0;
-                        for (; i < sellOffers.dataResult.Count; i++)
-                        {
-                            var valuePos = int.Parse(sellOffers.dataResult[i].count);
-                            var valuePrice = int.Parse(sellOffers.dataResult[i].price);
-
-                            if (exPrice < valuePrice || valuePos > maxItemsPerOfferPrice) break;
-
-                            if (currentPosition + valuePos < maxPosition && valuePrice > buyPrice)
-                                currentPosition += valuePos;
-                            else
-                            {
-                                break;
-                            }
-                        }
-
-                        var priceForSet = int.Parse(sellOffers.dataResult[i].price) - 1;
-                        // var recievedMoney = (int)(priceForSet * discount - profit);
-                        var recievedMoney = (int) (priceForSet * discount);
-                        if (recievedMoney > buyPrice)
-                        {
-                            Functions.SetPrice(itm, priceForSet, cfg.key);
-                            WriteMessage($"Выставлен {itm.i_market_hash_name} за {priceForSet} коп.", MessageType.Info);
-                        }
+                        Functions.SetPrice(itm, priceForSet, cfg.key);
+                        WriteMessage($"Выставлен {itm.i_market_hash_name} за {priceForSet} коп.", MessageType.Info);
                     }
+                    else
+                        if (sender != null && sender.Equals("Console"))
+                        {
+                            WriteMessage($"Куплен за {buyPrice}\r\nцена для выставления {priceForSet}\r\nполучено {recievedMoney}", MessageType.Info);
+                        }
                 }
             }
             else
             {
-                if(inv.errorMessage != null)
-                    WriteMessage($"setItems\n{inv.errorMessage}", MessageType.Error);
+                if (inv.errorMessage != null)
+                {
+                    WriteMessage(inv.errorMessage, MessageType.Error);
+                    if (inv.errorMessage.IndexOf("обновите", StringComparison.InvariantCultureIgnoreCase) != -1)
+                        Functions.UpdateInvent(cfg.key);
+                }
             }
         }
 
+        int getPriceForSet(Itm item, IReadOnlyList<Offer> sellOffers, double buyPrice, int maxItemsPerOfferPrice = 2, int maxPosition = 5)
+        {
+            var position = 0;
+            //Максимальная цена: ~ средняя + 10%
+            //чтобы сильно не уйти, если список продаж пустой
+            var exPrice =
+                (int)(Functions.GetAverangePrice(item,
+                          cfg.key) * 1.1 + 0.5);
+            int i = 0;
+            for (; i < sellOffers.Count; i++)
+            {
+                var valuePos = int.Parse(sellOffers[i].count);
+                var valuePrice = int.Parse(sellOffers[i].price);
+
+                if (exPrice < valuePrice || valuePos > maxItemsPerOfferPrice) break;
+
+                if (position + valuePos < maxPosition && valuePrice > buyPrice)
+                    position += valuePos;
+                else
+                {
+                    break;
+                }
+            }
+
+            int priceForSet = int.Parse(sellOffers[i].price) - 1;
+
+            if (exPrice < priceForSet)
+                priceForSet = exPrice;
+            return priceForSet;
+        }
+
+	    private void CheckOffers(object sender, EventArgs e)
+	    {
+	        var info = Functions.CountItemsToTransfer(cfg.key);
+	        if (info?.getCount > 0)
+	        {
+	            tradeWorker.AcceptTrade(TypeTrade.OUT);
+	        }
+	        if (info?.outCount > 0)
+	        {
+	            tradeWorker.AcceptTrade(TypeTrade.IN);
+	        }
+        }
 
         public void Dispose()
 		{
@@ -1362,13 +1139,23 @@ namespace MonoTM2
 
 		    Functions.DeleteAllOrders(cfg.key);
 
-			foreach (var I in Items)
-			{
-			    Functions.Notification(I, cfg.key, 1);
-				Thread.Sleep(cfg.Itimer);
-			}
+            for (var i = 0; i < Items.Count; i++)
+            {
+                RemoveItem(i);
+                Thread.Sleep(cfg.Itimer);
+            }
 
-		    Functions.GoOffline(cfg.key);
+            Functions.GoOffline(cfg.key);
 		}
+
+	    public void CreateAuth()
+	    {
+	        Mobile.CreateAuth();
+	    }
+
+	    public void GenerateGuardCode()
+	    {
+	        Mobile.GenerateGuardCode();
+	    }
 	}
 }

@@ -1,6 +1,8 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using MonoTM2.Classes;
+
 /*
  * все закоменченное можно раскомментить
  * 
@@ -321,6 +323,7 @@ namespace MonoTM2
     public class CNotifications
     {
         public bool success { get; set; }
+        public string error { get; set; }
         public List<NotificationsItems> Notifications;
     }
 
@@ -334,186 +337,6 @@ namespace MonoTM2
     }
 
     ///
-    public class MassInfo
-    {
-        [JsonProperty("success")]
-        public bool success { get; set; }
-
-        [JsonProperty("results")]
-        public List<MassInfoResult> results { get; set; }
-
-        [JsonProperty("error")]
-        public string error { get; set; }
-    }
-
-    public class MassInfoResult
-    {
-        [JsonProperty("classid")]
-        public string classid { get; set; }
-
-        [JsonProperty("instanceid")]
-        public string instanceid { get; set; }
-
-        [JsonProperty("sell_offers")]
-        public MassInfoOffers sellOffers { get; set; }
-
-        [JsonProperty("history")]
-        public MassInfoHistory history { get; set; }
-
-        [JsonProperty("buy_offers")]
-        public MassInfoOffers buyOffers { get; set; }
-
-        [JsonProperty("info")]
-        public Info info { get; set; }
-    }
-
-    public class MassInfoHistory
-    {
-        [JsonProperty("max")]
-        public uint max { get; set; }
-
-        [JsonProperty("average")]
-        public uint average { get; set; }
-
-        [JsonProperty("min")]
-        public uint min { get; set; }
-
-        [JsonProperty("number")]
-        public uint number { get; set; }
-
-        [JsonProperty("history")]
-        public List<List<long>> otherHistory { get; set; }
-
-    }
-
-    public class MassInfoOffers
-    {
-        [JsonProperty("best_offer")]
-        public int bestOffer { get; set; }
-    }
-
-
-    public class MassInfoInfo
-    {
-        [JsonProperty("name")]
-        public string name { get; set; }
-
-        [JsonProperty("market_name")]
-        public string marketName { get; set; }
-
-        [JsonProperty("market_hash_name")]
-        public string marketHashName { get; set; }
-
-        [JsonProperty("mtype")]
-        public string mtype { get; set; }
-
-        [JsonProperty("quality")]
-        public string quality { get; set; }
-
-        [JsonProperty("slot")]
-        public string slot { get; set; }
-
-        [JsonProperty("our_market_instanceid")]
-        public object ourMarketInstanceid { get; set; }
-
-        [JsonProperty("rarity")]
-        public string rarity { get; set; }
-
-        [JsonProperty("type")]
-        public string type { get; set; }
-    }
+ 
     ///
-
-    ///GetInv
-    public class GetInv
-    {
-        [JsonProperty("ok")]
-        public bool success { get; set; }
-
-        [JsonProperty("data")]
-        public List<GetInvDatum> data { get; set; }
-
-        [JsonProperty("error")]
-        public string error { get; set; }
-    }
-
-    public class GetInvDatum
-    {
-        public string ui_id { get; set; }
-        public string i_market_hash_name { get; set; }
-        public string i_market_name { get; set; }
-        public string i_name { get; set; }
-        public string i_name_color { get; set; }
-        public string i_rarity { get; set; }
-        public List<IDescription> i_descriptions { get; set; }
-        public int ui_status { get; set; }
-        public string he_name { get; set; }
-        public int ui_price { get; set; }
-        public int min_price { get; set; }
-        public bool ui_price_text { get; set; }
-        public bool min_price_text { get; set; }
-        public string i_classid { get; set; }
-        public string i_instanceid { get; set; }
-        public bool ui_new { get; set; }
-        public int position { get; set; }
-        public string wear { get; set; }
-        public int tradable { get; set; }
-        public double i_market_price { get; set; }
-        public string i_market_price_text { get; set; }
-    }
-    /// 
-
-    public class OperationHistory
-    {
-        public string h_id { get; set; }
-        public string h_event { get; set; }
-        public string h_time { get; set; }
-        public string h_event_id { get; set; }
-        public int join { get; set; }
-        public string app { get; set; }
-        public string id { get; set; }
-        public string classid { get; set; }
-        public string instanceid { get; set; }
-        public string quality { get; set; }
-        public string name_color { get; set; }
-        public string market_name { get; set; }
-        public string market_hash_name { get; set; }
-        public string paid { get; set; }
-        public string recieved { get; set; }
-        public string stage { get; set; }
-        public string item { get; set; }
-        public string flags { get; set; }
-    }
-
-    enum MessageType
-    {
-        Info,
-        Socket,
-        GetWeapon,
-        GiveWeapon,
-        BuyWeapon,
-        Timer,
-        Error
-    }
-
-    public enum PriceCheck
-    {
-        Price, Notification
-    }
-
-    public enum AnswerType
-    {
-        success,
-        answer_error,
-        item_not_in_inventory,
-        bad_request,
-        catch_error
-    }
-
-    public class ReturnResult<T>
-    {
-        public bool success { get; set; }
-        public string errorMessage { get; set; }
-        public T dataResult { get; set; }
-    }
 }

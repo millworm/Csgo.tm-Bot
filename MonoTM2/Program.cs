@@ -1,21 +1,21 @@
-﻿using System;
+﻿using MonoTM2.Classes;
+using System;
 using System.Reflection;
-
 
 namespace MonoTM2
 {
-	static class Program
+    static class Program
     {
         static void Main()
         {
-            Console.Title = $"CsgoTm bot v.{typeof(CBot).Assembly.GetName().Version}";
+            Console.Title = $"CsgoTm bot v.{Assembly.GetEntryAssembly().GetName().Version}";
             CBot bot = new CBot();
             //загрузка всех настроек
             bot.Loader();
             //стартуем
-            #if !DEBUG
-                bot.Start();
-            #endif
+#if !DEBUG
+            bot.Start();
+#endif
             Console.WriteLine("Запуск выполнен");
             string Mess = "";
             while (Mess != "q")
@@ -25,6 +25,9 @@ namespace MonoTM2
                 {
                     switch (Mess.ToLowerInvariant())
                     {
+                        case "s":
+                            bot.SetItems("Console", null);
+                            break;
                         case "c":
                             Console.Clear();
                             break;
