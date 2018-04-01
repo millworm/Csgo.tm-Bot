@@ -69,10 +69,10 @@ namespace MonoTM2
                 //}
             }
 #if !DEBUG
-            // tradeWorker = new TradeWorker();
+             tradeWorker = new TradeWorker();
             //закомментить, если не нужно автовыставление
             //работает еще в демо режиме
-            //  tradeWorker.OnOutgoingTrade += SetItems;
+              tradeWorker.OnOutgoingTrade += SetItems;
             // tradeWorker.OnIncomingTrade += CheckOffers;
 #endif
             UpdatePriceDelegateAction = MassUpdate;
