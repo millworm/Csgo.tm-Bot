@@ -1,7 +1,8 @@
 ﻿using MonoTM2.Classes;
+using MonoTM2.InputOutput;
 using System;
 using System.Reflection;
-
+using System.Text;
 namespace MonoTM2
 {
     static class Program
@@ -9,6 +10,7 @@ namespace MonoTM2
         static void Main()
         {
             Console.Title = $"CsgoTm bot v.{Assembly.GetEntryAssembly().GetName().Version}";
+            Config.GetConfig();
             CBot bot = new CBot();
             //загрузка всех настроек
             bot.Loader();
@@ -16,7 +18,7 @@ namespace MonoTM2
 #if !DEBUG
             bot.Start();
 #endif
-            Console.WriteLine("Запуск выполнен");
+            ConsoleInputOutput.OutputMessage("Запуск выполнен");
             string Mess = "";
             while (Mess != "q")
             {
@@ -31,12 +33,12 @@ namespace MonoTM2
                         case "c":
                             Console.Clear();
                             break;
-                        case "accept":
-                            bot.AcceptMobileOrdersFunc();
-                            break;
-                        case "acceptmobile":
-                            bot.AcceptMobileOrders();
-                            break;
+                        /*  case "accept":
+                               bot.AcceptMobileOrdersFunc();
+                               break;
+                           case "acceptmobile":
+                               bot.AcceptMobileOrders();
+                               break;*/
                         //привязка мобильного приложения 
                         case "mobile":
                             bot.CreateAuth();
@@ -47,7 +49,7 @@ namespace MonoTM2
                         //показывать какие предметы были выставлены из списка покупок
                         case "p":
                         case "profit":
-                            Console.WriteLine(bot.GetProfit());
+                            ConsoleInputOutput.OutputMessage(bot.GetProfit());
                             break;
                         //подтвердить трейды
                         case "trade":
@@ -55,7 +57,7 @@ namespace MonoTM2
                             if (bot.GetConfirmTradesValue())
                             {
                                 bot.ConfirmTrade();
-                                Console.WriteLine("Выключить прием?");
+                                ConsoleInputOutput.OutputMessage("Выключить прием?");
                                 var a = Console.ReadLine();
 
                                 if (a.ToLowerInvariant() == "y")
@@ -64,7 +66,7 @@ namespace MonoTM2
 
                                     if (bot.GetConfirmTradesValue())
                                     {
-                                        Console.WriteLine("Отключено");
+                                        ConsoleInputOutput.OutputMessage("Отключено");
                                     }
                                 }
                             }
@@ -76,7 +78,7 @@ namespace MonoTM2
                         //добавить предмет
                         case "add":
                         case "a":
-                            Console.WriteLine("Введите ссылку");
+                            ConsoleInputOutput.OutputMessage("Введите ссылку");
                             var link = Console.ReadLine();
                             bot.AddItem(link);
                             break;
@@ -92,12 +94,16 @@ namespace MonoTM2
                             break;
                         //вывести прибыль с предмета
                         case "gprice":
-                            Console.WriteLine(bot.GetPrice());
+                            var hostGprice = GetPlace();
+
+                            ConsoleInputOutput.OutputMessage(bot.GetPrice(hostGprice).ToString());
                             break;
                         case "sprice":
-                            Console.WriteLine("Введите прибыль");
-                            bot.SetPrice(Console.ReadLine());
-                            Console.WriteLine("Новая прибыль " + bot.GetPrice().ToString());
+                            var hostSprice = GetPlace();
+
+                            ConsoleInputOutput.OutputMessage("Введите прибыль");
+                            bot.SetPrice(Console.ReadLine(), hostSprice);
+                            ConsoleInputOutput.OutputMessage("Новая прибыль " + bot.GetPrice(hostSprice));
 
                             break;
                         //вывести список предметов	
@@ -105,58 +111,86 @@ namespace MonoTM2
                             Console.ForegroundColor = ConsoleColor.Magenta;
                             int n = 0;
                             var tempItems = bot.GetListItems();
-                            var profitList = bot.GetPrice();
 
-                            Console.WriteLine($" №    {string.Format("{0,-45}", "Название")}\tЦена\tПрибыль\tТип");
-                            foreach (var y in tempItems)
+                            var sb = new StringBuilder();
+                            sb.Append(Environment.NewLine);
+                            sb.AppendLine($" №          {$"{"Название",-40}"}\tЦена\tПрибыль\tТип");
+
+                            foreach (var host in tempItems)
                             {
-                                var nameList = string.Format("{0,-45}", y.name);
-                                string typeList = Convert.ToString(y.priceCheck).Substring(0, 5);
-                                if (y.profit != 0)
+                                var place = "";
+                                switch (host.Key)
                                 {
-                                    Console.WriteLine("[{3}]  {0}\t{1}\t{2}\t{4}", nameList, y.price, y.profit, n++.ToString("00"), typeList);
+                                    case Const.Host.CSGO:
+                                        place = "Csgo";
+                                        break;
+                                    case Const.Host.DOTA2:
+                                        place = "Dota2";
+                                        break;
+                                    case Const.Host.PUBG:
+                                        place = "Pubg";
+                                        break;
                                 }
-                                else
+                                foreach (var item in host.Value)
                                 {
-                                    Console.WriteLine("[{3}]  {0}\t{1}\t{2}\t{4}", nameList, y.price, profitList, n++.ToString("00"), typeList);
+                                    var profitList = bot.GetPrice(host.Key);
+                                    var nameList = $"{item.name,-40}";
+                                    string typeList = Convert.ToString(item.priceCheck).Substring(0, 5);
+                                    if (item.profit != 0)
+                                    {
+                                        sb.AppendLine(
+                                            $"[{n++:00}]{$"[{place}]",-7} {nameList}\t{item.price}\t{item.profit}\t{typeList}");
+                                    }
+                                    else
+                                    {
+                                        sb.AppendLine(
+                                            $"[{n++:00}]{$"[{place}]",-7} {nameList}\t{item.price}\t{profitList}\t{typeList}");
+                                    }
                                 }
-
+                                if(host.Value.Count > 0)
+                                    sb.AppendLine(new string('-', 50));
+                                n = 0;
                             }
+                            ConsoleInputOutput.OutputMessage(sb.ToString(), MessageType.GiveWeapon);//для окраски в розовый в консоли
                             Console.ResetColor();
+
                             break;
 
                         //удалить предмет
-                        case "delete":
-                        case "d":
-                            Console.WriteLine("Введите номер");
-                            var N = Convert.ToInt16(Console.ReadLine());
-                            Console.WriteLine("Удалить {0}  ?", bot.GetItem(N).name);
-                            var A = Console.ReadLine().ToLowerInvariant();
-                            if (A == "y")
-                            {
-                                bot.RemoveItem(N);
-                                Console.WriteLine("Удалено");
-                            }
+                        /*  case "delete":
+                          case "d":
+                              ConsoleInputOutput.OutputMessage("Введите номер");
+                              var N = Convert.ToInt16(Console.ReadLine());
+                              ConsoleInputOutput.OutputMessage($"Удалить {bot.GetItem(N).name}  ?");
+                              var A = Console.ReadLine().ToLowerInvariant();
+                              if (A == "y")
+                              {
+                                  bot.RemoveItem(N);
+                                  ConsoleInputOutput.OutputMessage("Удалено");
+                              }
 
-                            break;
+                              break;*/
                         case "stime":
-                            Console.WriteLine("Введите время");
-                            bot.SetUpdateTimer(Console.ReadLine());
-                            Console.WriteLine("Новое время " + bot.GetUpdateTimer().ToString());
+                            var hostStime = GetPlace();
+                            ConsoleInputOutput.OutputMessage("Введите время");
+                            bot.SetUpdateTimer(Console.ReadLine(), hostStime);
+                            ConsoleInputOutput.OutputMessage("Новое время " + bot.GetUpdateTimer(hostStime));
                             break;
                         case "gtime":
-                            Console.WriteLine("Время " + bot.GetUpdateTimer().ToString());
+                            var hostGtime = GetPlace();
+                            ConsoleInputOutput.OutputMessage("Время " + bot.GetUpdateTimer(hostGtime));
                             break;
                         case "status":
-                            Console.WriteLine(bot.Status());
+                            ConsoleInputOutput.OutputMessage(bot.Status());
                             break;
                         case "sprofit":
-                            Console.WriteLine("Введите номер вещи и прибыль через пробел (пример: 2 20).\nДля использования общей прибыли выставить 0");
+                            var hostSprofit = GetPlace();
+                            ConsoleInputOutput.OutputMessage("Введите номер вещи и прибыль через пробел (пример: 2 20).\nДля использования общей прибыли выставить 0");
                             var line = Console.ReadLine();
                             var data = line.Split();
                             if (data.Length != 2)
                             {
-                                Console.WriteLine("Неверный формат");
+                                ConsoleInputOutput.OutputMessage("Неверный формат");
                             }
                             else
                             {
@@ -165,35 +199,36 @@ namespace MonoTM2
 
                                 if (id >= bot.GetListItems().Count || id < 0)
                                 {
-                                    Console.WriteLine("Номер за пределами списка вещей");
+                                    ConsoleInputOutput.OutputMessage("Номер за пределами списка вещей");
                                     break;
                                 }
                                 if (profit < 0)
                                 {
-                                    Console.WriteLine("Прибыль ниже нуля");
+                                    ConsoleInputOutput.OutputMessage("Прибыль ниже нуля");
                                     break;
                                 }
 
-                                var item = bot.GetItem(id);
-                                Console.WriteLine($"Выставить прибыль для {item.name} прибыль в {profit} копеек?");
+                                var item = bot.GetItem(id, hostSprofit);
+                                ConsoleInputOutput.OutputMessage($"Выставить прибыль для {item.name} прибыль в {profit} копеек?");
 
                                 var spC = Console.ReadLine().ToLowerInvariant();
                                 if (spC == "y")
                                 {
-                                    if (bot.SetProfit(id, profit))
-                                        Console.WriteLine("Выставлено");
+                                    if (bot.SetProfit(hostSprofit, id, profit))
+                                        ConsoleInputOutput.OutputMessage("Выставлено");
                                     else
-                                        Console.WriteLine("Ошибка");
+                                        ConsoleInputOutput.OutputMessage("Ошибка");
                                 }
                             }
                             break;
                         case "scheck":
-                            Console.WriteLine("Сменить способ проверки цен для предмета.\nВведите номер предмета и тип проверки (0 - обычная, 1 - уведомления)\nПример: 1 1");
+                            var hostScheck = GetPlace();
+                            ConsoleInputOutput.OutputMessage("Сменить способ проверки цен для предмета.\nВведите номер предмета и тип проверки (0 - обычная, 1 - уведомления)\nПример: 1 1");
                             line = Console.ReadLine();
                             data = line.Split();
                             if (data.Length != 2)
                             {
-                                Console.WriteLine("Неверный формат");
+                                ConsoleInputOutput.OutputMessage("Неверный формат");
                                 break;
                             }
 
@@ -201,51 +236,65 @@ namespace MonoTM2
                             var type = Convert.ToInt32(data[1]);
                             if (_id >= bot.GetListItems().Count || _id < 0)
                             {
-                                Console.WriteLine("Номер за пределами списка вещей");
+                                ConsoleInputOutput.OutputMessage("Номер за пределами списка вещей");
                                 break;
                             }
                             if (type < 0 || type > 1)
                             {
-                                Console.WriteLine("Неизвестный тип");
+                                ConsoleInputOutput.OutputMessage("Неизвестный тип");
                                 break;
                             }
 
-                            bot.SetPriceCheck(_id, type);
+                            bot.SetPriceCheck(hostScheck, _id, type);
                             break;
                         case "gcheck":
-                            Console.WriteLine("Введите номер предмета");
+                            var hostGcheck = GetPlace();
+                            ConsoleInputOutput.OutputMessage("Введите номер предмета");
                             var gcheckId = Convert.ToInt32(Console.ReadLine());
                             if (gcheckId >= bot.GetListItems().Count || gcheckId < 0)
                             {
-                                Console.WriteLine("Номер за пределами списка вещей");
+                                ConsoleInputOutput.OutputMessage("Номер за пределами списка вещей");
                             }
                             else
                             {
-                                var typeCheck = bot.GetPriceCheck(gcheckId);
+                                var typeCheck = bot.GetPriceCheck(hostGcheck, gcheckId);
                                 switch (typeCheck)
                                 {
                                     case PriceCheck.Notification:
-                                        Console.WriteLine("Уведомления");
+                                        ConsoleInputOutput.OutputMessage("Уведомления");
                                         break;
                                     case PriceCheck.Price:
-                                        Console.WriteLine("Обычный");
+                                        ConsoleInputOutput.OutputMessage("Обычный");
                                         break;
                                 }
                             }
                             break;
                         default:
-                            Console.WriteLine("Команда неизвестна");
+                            ConsoleInputOutput.OutputMessage("Команда неизвестна");
                             break;
                     }
                 }
                 catch (Exception tty)
                 {
-                    Console.WriteLine(tty.Message);
+                    ConsoleInputOutput.OutputMessage(tty.Message);
                 }
             }
             bot.Dispose();
         }
 
+        static string GetPlace()
+        {
+            ConsoleInputOutput.OutputMessage("Для какой площадки устанавливается прибыль?\nCSGO; Dota2; PUBG");
+            var placeSprice = Console.ReadLine().ToLowerInvariant();
+            var hostSprice = Const.Host.FindHost(placeSprice);
+
+            if (hostSprice == null)
+                ConsoleInputOutput.OutputMessage("Площадка не найдена. Попробуйте еще раз");
+            else
+                return hostSprice;
+
+            throw new NullReferenceException();
+        }
     }
 
 }

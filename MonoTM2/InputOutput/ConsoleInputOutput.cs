@@ -6,7 +6,7 @@ namespace MonoTM2.InputOutput
 {
     public class ConsoleInputOutput: IInputOutput
     {
-        private static object writeLocker = new object();
+        private static readonly object writeLocker = new object();
 
         public static async void OutputMessage(string msg, MessageType msgType = MessageType.Default)
         {
@@ -46,7 +46,7 @@ namespace MonoTM2.InputOutput
             }
 
             commandBuilder.Add(Console.ResetColor);
-            commandBuilder.Add(() => Console.Write($"[{DateTime.Now.ToLongTimeString()}] "));
+            commandBuilder.Add(() => Console.Write($"[{DateTime.Now.ToString("HH:mm:ss")}] "));
             commandBuilder.Add(() => Console.ForegroundColor = color);
             commandBuilder.Add(() => Console.WriteLine(msg));
             commandBuilder.Add(Console.ResetColor);

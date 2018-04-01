@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using MonoTM2.Classes;
+using MonoTM2.Const;
 
 /*
  * все закоменченное можно раскомментить
@@ -153,12 +154,18 @@ namespace MonoTM2
     {
         public string name { get; set; }
         public string link { get; set; }
+        /// <summary>
+        /// Цена покупки
+        /// </summary>
         public double price { get; set; }
         /// <summary>
         /// Format: [classid]_[instanceid]
         /// </summary>
         public string hash { get; set; }
         public string id { get; set; }
+        /// <summary>
+        /// Персональная прибыль к предмету
+        /// </summary>
         public double profit { get; set; } = 0;
         //public bool turn { get; set; }
         public PriceCheck priceCheck { get; set; } = PriceCheck.Price;
@@ -316,8 +323,8 @@ namespace MonoTM2
 
     public class InventOffersInfo
     {
-        public int getCount { get; set; } = 0;
         public int outCount { get; set; } = 0;
+        public int inCount { get; set; } = 0;
 }
 
     public class CNotifications

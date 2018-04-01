@@ -44,7 +44,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
+    <Optimize>false</Optimize>
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
@@ -66,8 +66,8 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-    <Reference Include="websocket-sharp, Version=1.0.2.59611, Culture=neutral, PublicKeyToken=5660b08a1845a91e, processorArchitecture=MSIL">
-      <HintPath>..\packages\WebSocketSharp.1.0.3-rc11\lib\websocket-sharp.dll</HintPath>
+    <Reference Include="websocket-sharp, Version=1.0.4.0, Culture=neutral, PublicKeyToken=5660b08a1845a91e, processorArchitecture=MSIL">
+      <HintPath>..\packages\WebSocketSharpFork.1.0.4.0\lib\net35\websocket-sharp.dll</HintPath>
       <Private>True</Private>
     </Reference>
   </ItemGroup>
@@ -75,11 +75,16 @@
     <Compile Include="CBot.cs" />
     <Compile Include="Classes\Classes.cs" />
     <Compile Include="Classes\GetInv.cs" />
+    <Compile Include="Const\Host.cs" />
+    <Compile Include="Classes\Hosts\Market.cs" />
     <Compile Include="Classes\MassInfo.cs" />
     <Compile Include="Classes\OperationHistory.cs" />
     <Compile Include="Classes\PriceCheck.cs" />
     <Compile Include="Classes\ReturnResult.cs" />
-    <Compile Include="Config.cs" />
+    <Compile Include="Classes\Config.cs" />
+    <Compile Include="Classes\CurrentState.cs" />
+    <Compile Include="Classes\SteamSettings.cs" />
+    <Compile Include="Classes\TypeSave.cs" />
     <Compile Include="functions.cs" />
     <Compile Include="InputOutput\ConsoleInputOutput.cs" />
     <Compile Include="InputOutput\IInputOutput.cs" />
@@ -89,7 +94,6 @@
     <Compile Include="Steam\Mobile.cs" />
     <Compile Include="Steam\TradeWorker.cs" />
     <Compile Include="Classes\AnswerType.cs" />
-    <Compile Include="Test.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="account.maFile">

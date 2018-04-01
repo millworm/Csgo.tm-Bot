@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using MonoTM2.Classes;
 using Newtonsoft.Json;
 using SteamAuth;
 
@@ -15,7 +16,7 @@ namespace MonoTM2.Steam
         private static void SteamAuthLogin()
         {
             var cfg = Config.GetConfig();
-            var authLogin = new UserLogin(cfg.SteamLogin, cfg.SteamPassword);
+            var authLogin = new UserLogin(cfg.SteamSettings.Login, cfg.SteamSettings.Password);
             LoginResult result;
             do
             {

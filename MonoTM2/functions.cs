@@ -8,25 +8,26 @@ using System.Net;
 using System.Text;
 using System.Reflection;
 using System.Linq;
+using System.Threading.Tasks;
 using MonoTM2.Classes;
+using MonoTM2.InputOutput;
 
 namespace MonoTM2
 {
     class Functions
     {
-	    private const string Host = "https://market.csgo.com";
         private static readonly string _line = new string('-', 50);
 
-	    //поиск вещи
-        public static bool Buy(Itm item, string key, int timeout = 500)
+        //поиск вещи
+        public static bool Buy(Itm item, string host, string key, int timeout = 500)
         {
             int i = 0;
             try
             {
                 a:
-				//string resp = Web(host + "/api/Buy/" + item.id + "/" + Convert.ToInt32(item.price * 100) + "/" + item.hash + "/" + "?key=" + key, timeout);
-	            string resp = Web(Host + "/api/Buy/" + item.id + "/" + Convert.ToInt32(item.price * 100) + "/" + "?key=" + key, timeout);
-	            aBuy it = JsonConvert.DeserializeObject<aBuy>(resp);
+                //string resp = Web($"{host}/api/Buy/" + item.id + "/" + Convert.ToInt32(item.price * 100) + "/" + item.hash + "/" + "?key={key}", timeout);
+                string resp = Web($"{host}/api/Buy/{item.id}/{Convert.ToInt32(item.price * 100)}/?key={key}", timeout);
+                aBuy it = JsonConvert.DeserializeObject<aBuy>(resp);
                 if (it.id != null && it.id.ToLower() != "false")
                 {
                     if (it.result == "ok")
@@ -38,17 +39,15 @@ namespace MonoTM2
                 {
                     if (it.error != null && it.error.ToLower() == "bad key")
                     {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("Неверный ключ");
-                        Console.ResetColor();
+                        ConsoleInputOutput.OutputMessage("Неверный ключ", MessageType.Error);
                         Console.ReadKey();
                         Environment.Exit(-1);
                     }
-                    if (it.result.IndexOf("изменилось", StringComparison.OrdinalIgnoreCase) != -1 
-						|| it.result.IndexOf("вывод", StringComparison.OrdinalIgnoreCase) != -1 
-						|| it.result.IndexOf("средств", StringComparison.OrdinalIgnoreCase) != -1 
-						|| it.result.IndexOf("инвентарь", StringComparison.OrdinalIgnoreCase) != -1 
-						|| it.result.IndexOf("боты", StringComparison.OrdinalIgnoreCase) != -1)
+                    if (it.result.IndexOf("изменилось", StringComparison.OrdinalIgnoreCase) != -1
+                        || it.result.IndexOf("вывод", StringComparison.OrdinalIgnoreCase) != -1
+                        || it.result.IndexOf("средств", StringComparison.OrdinalIgnoreCase) != -1
+                        || it.result.IndexOf("инвентарь", StringComparison.OrdinalIgnoreCase) != -1
+                        || it.result.IndexOf("боты", StringComparison.OrdinalIgnoreCase) != -1)
                     {
                         return false;
                     }
@@ -67,16 +66,16 @@ namespace MonoTM2
 
         }
 
-		/// <summary>
-		/// получить список выщей на продаже
-		/// </summary>
-		/// <param name="key"></param>
-		/// <returns>Trades</returns>
-		public static Trades GetTrades(string key)
+        /// <summary>
+        /// получить список выщей на продаже
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns>Trades</returns>
+        public static Trades GetTrades(string host, string key)
         {
             try
             {
-	            string resp = Web(Host + "/api/Trades/?key=" + key);
+                string resp = Web($"{host}/api/Trades/?key={key}");
                 resp = resp.Insert(0, "{\"items\":");
                 resp += "}";
                 return JsonConvert.DeserializeObject<Trades>(resp);
@@ -95,13 +94,13 @@ namespace MonoTM2
         /// <param name="key">Api key</param>
         /// <param name="lang">en,ru</param>
         /// <returns>string hash</returns>
-        public static string GetHash(Itm item, string key, string lang = "en")
+        public static string GetHash(Itm item, string host, string key, string lang = "en")
         {
             string pattern = "[0-9]{1,15}[-]{1}[0-9]{1,15}";
             var match = System.Text.RegularExpressions.Regex.Match(item.link, pattern);
             var code = match.Value.Replace("-", "_");
 
-            string resp = Web(Host + "/api/ItemInfo/" + code + "/" + lang + "/?key=" + key, 5000);
+            string resp = Web($"{host}/api/ItemInfo/{code}/{lang}/?key={key}", 5000);
             Info inf = JsonConvert.DeserializeObject<Info>(resp);
 
             item.name = inf.name + " (" + inf.quality + ")";
@@ -110,49 +109,50 @@ namespace MonoTM2
             return inf.hash;
         }
 
-		/// <summary>
-		/// Запрос мин. цены
-		/// </summary>
-		public static int GetMinPrice(Itm item, string key)
+        /// <summary>
+        /// Запрос мин. цены
+        /// </summary>
+        public static int GetMinPrice(Itm item, string host, string key)
         {
-            string resp = Web(Host + "/api/BestSellOffer/" + item.id + "/?key=" + key);
+            string resp = Web($"{host}/api/BestSellOffer/{item.id}/?key={key}");
 
             var bestSellOffer = new { success = false, best_offer = "", error = "" };
             var message = JsonConvert.DeserializeAnonymousType(resp, bestSellOffer);
-	        return (bool) message?.success? int.Parse(message.best_offer): -1;
+            return (bool)message?.success ? int.Parse(message.best_offer) : -1;
         }
 
-		/// <summary>
-		/// Запрос средней цены
-		/// </summary>
-		public static int GetAverangePrice(Itm item, string key)
+        /// <summary>
+        /// Запрос средней цены
+        /// </summary>
+        public static int GetAverangePrice(Itm item, string host, string key)
         {
-            string resp = Web(Host + "/api/ItemHistory/" + item.id + "/?key=" + key);
+            string resp = Web($"{host}/api/ItemHistory/{item.id}/?key={key}");
             var pr = new { success = false, average = 0 };
             var inf = JsonConvert.DeserializeAnonymousType(resp, pr);
-	        return (bool) inf?.success ? inf.average : 0;
+            return (bool)inf?.success ? inf.average : 0;
         }
 
-		/// <summary>
-		/// Запрос последней в истории цены
-		/// </summary>
-		public static int GetLastPrice(Itm item, string key)
+        /// <summary>
+        /// Запрос последней в истории цены
+        /// </summary>
+        public static int GetLastPrice(Itm item, string host, string key)
         {
-            string resp = Web(Host + "/api/ItemHistory/" + item.id + "/?key=" + key);
+            string resp = Web($"{host}/api/ItemHistory/{item.id}/?key={key}");
             var pr = new { success = false, average = 0, history = new[] { new { l_price = "" } }, error = "" };
             var inf = JsonConvert.DeserializeAnonymousType(resp, pr);
-	        return (bool)inf?.success ? Convert.ToInt32(inf.history[0].l_price) : 0;
+            return (bool)inf?.success ? Convert.ToInt32(inf.history[0].l_price) : 0;
         }
 
-		/// <summary>
-		/// Запрос баланса
-		/// </summary>
-		public static int GetMoney(string key)
+        /// <summary>
+        /// Запрос баланса
+        /// </summary>
+        public static int GetMoney(string host, string key)
         {
             try
             {
-                string resp = Web(Host + "/api/GetMoney/?key=" + key);
-                Console.WriteLine("Баланс: {0}", resp);
+                string resp = Web($"{host}/api/GetMoney/?key={key}");
+                ConsoleInputOutput.OutputMessage($"Баланс: {resp}", MessageType.Default);
+
                 Money mon = JsonConvert.DeserializeObject<Money>(resp);
                 if (mon.error == "Bad KEY")
                 {
@@ -169,18 +169,18 @@ namespace MonoTM2
             }
         }
 
-		/// <summary>
-		/// Запрос оффера
-		/// </summary>
-		/// <param name="bid"></param>
-		/// <param name="key"></param>
-		/// <param name="o"></param>
-		/// <returns></returns>
-		public static Trade GetOffer(string bid, string key, string o = "out")
+        /// <summary>
+        /// Запрос оффера
+        /// </summary>
+        /// <param name="bid"></param>
+        /// <param name="key"></param>
+        /// <param name="out"></param>
+        /// <returns></returns>
+        public static Trade GetOffer(string bid, string host, string key, string @out = "out")
         {
             try
             {
-                string resp = Web(Host + "/api/ItemRequest/" + o + "/" + bid + "/?key=" + key, timeout: 15000);
+                string resp = Web($"{host}/api/ItemRequest/{@out}/{bid}/?key={key}", timeout: 15000);
                 Trade tr = JsonConvert.DeserializeObject<Trade>(resp);
                 if (tr.success)
                     return tr;
@@ -190,8 +190,8 @@ namespace MonoTM2
                     //Если ошибка в обновлении инвентаря, то обновляем
                     if (tr.error?.IndexOf("загрузить", StringComparison.OrdinalIgnoreCase) != -1)
                     {
-                        Console.WriteLine("Не удалось загрузить инвентарь.\nОбновляем");
-                        UpdateInvent(key);                        
+                        ConsoleInputOutput.OutputMessage("Не удалось загрузить инвентарь.\nОбновляем", MessageType.Default);
+                        UpdateInvent(host, key);
                         return null;
                     }
                     else
@@ -209,11 +209,11 @@ namespace MonoTM2
         /// <summary>
 		/// Запросить id бота
 		/// </summary>
-        public static string GetBotId(string key)
+        public static string GetBotId(string host, string key)
         {
             try
             {
-                string resp = Web(Host + "/api/Trades/?key=" + key, timeout: 15000);
+                string resp = Web($"{host}/api/Trades/?key={key}", timeout: 15000);
                 var trades = JsonConvert.DeserializeObject<List<TradeOffer>>(resp);
                 foreach (var t in trades)
                 {
@@ -235,9 +235,9 @@ namespace MonoTM2
 		/// Отослать уведомление сайту об онлайне
 		/// </summary>
 		/// <param name="key"></param>
-        public static void Ping(string key)
+        public static void Ping(string host, string key)
         {
-            Web(Host + "/api/PingPong/?key=" + key);
+            Web($"{host}/api/PingPong/?key={key}");
         }
 
         /// <summary>
@@ -245,14 +245,14 @@ namespace MonoTM2
         /// </summary>
         /// <param name="key">api key</param>
         /// <returns>string socket key</returns>
-        public static string GetWS(string key)
+        public static string GetWS(string host, string key)
         {
-            return Web(Host + "/api/GetWSAuth/?key=" + key);
+            return Web($"{host}/api/GetWSAuth/?key={key}");
         }
         //
 
         //Веб запрос
-        public static string Web(string server, int timeout = 1000, string list="")
+        private static string Web(string server, int timeout = 1000, string list = "")
         {
             try
             {
@@ -262,14 +262,14 @@ namespace MonoTM2
                 if (list != "")
                 {
                     myHttpWebRequest.Method = "POST";
-                    var data = Encoding.UTF8.GetBytes("list="+list);
+                    var data = Encoding.UTF8.GetBytes("list=" + list);
                     myHttpWebRequest.ContentLength = data.Length;
                     myHttpWebRequest.ContentType = "application/x-www-form-urlencoded";
 
                     using (var stream = myHttpWebRequest.GetRequestStream())
                         stream.Write(data, 0, data.Length);
-                }    
-                using (HttpWebResponse myHttpWebResponse = (HttpWebResponse)myHttpWebRequest.GetResponse())
+                }
+                using (var myHttpWebResponse = myHttpWebRequest.GetResponse())
                 {
                     using (StreamReader myStreamReader = new StreamReader(myHttpWebResponse.GetResponseStream()))
                     {
@@ -294,15 +294,57 @@ namespace MonoTM2
             }
         }
 
-
-		/// <summary>
-		/// Получения списка быстрых покупок
-		/// </summary>
-		public static List<QItems> QList(string key)
+        private static async Task<string> _WebAsync(string server, int timeout = 1000, string list = "")
         {
             try
             {
-                string answer = Web(Host + "/api/QuickItems/?key=" + key);
+                HttpWebRequest myHttpWebRequest = (HttpWebRequest)HttpWebRequest.Create(server);
+                myHttpWebRequest.Timeout = timeout;
+                myHttpWebRequest.UserAgent = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/535.2 (KHTML, like Gecko) Chrome/15.0.874.121 Safari/535.2";
+                if (list != "")
+                {
+                    myHttpWebRequest.Method = "POST";
+                    var data = Encoding.UTF8.GetBytes("list=" + list);
+                    myHttpWebRequest.ContentLength = data.Length;
+                    myHttpWebRequest.ContentType = "application/x-www-form-urlencoded";
+
+                    using (var stream = myHttpWebRequest.GetRequestStream())
+                        stream.Write(data, 0, data.Length);
+                }
+                using (var myHttpWebResponse = await myHttpWebRequest.GetResponseAsync())
+                {
+                    using (StreamReader myStreamReader = new StreamReader(myHttpWebResponse.GetResponseStream()))
+                    {
+                        return await myStreamReader.ReadToEndAsync();
+                    }
+                }
+            }
+            catch (WebException e)
+            {
+                switch (e.Status)
+                {
+                    case WebExceptionStatus.ProtocolError:
+                    case WebExceptionStatus.Timeout:
+                        break;
+                    default:
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine(e.Message);
+                        Console.ResetColor();
+                        break;
+                }
+                return "{\"success\":\"False\"}";
+            }
+        }
+
+
+        /// <summary>
+        /// Получения списка быстрых покупок
+        /// </summary>
+        public static List<QItems> QList(string host, string key)
+        {
+            try
+            {
+                string answer = Web($"{host}/api/QuickItems/?key={key}");
                 var qData = JsonConvert.DeserializeObject<QData>(answer);
                 if (qData != null && qData.success)
                 {
@@ -320,16 +362,17 @@ namespace MonoTM2
         }
 
         /// <summary>
-		/// Купить предмет из списка быстрых покупок
-		/// </summary>
-		/// <param name="key">Ключ</param>
-		/// <param name="id">Id предмета</param>
-		/// <returns>True - покупка удалась; False - покупку не удалось совершить</returns>
-        public static bool QBuy(string key, string id)
+        /// Купить предмет из списка быстрых покупок
+        /// </summary>
+        /// <param name="id">Id предмета</param>
+        /// <param name="host"></param>
+        /// <param name="key">Ключ</param>
+        /// <returns>True - покупка удалась; False - покупку не удалось совершить</returns>
+        public static bool QBuy(string id, string host, string key)
         {
             try
             {
-                string answer = Web(Host + "/api/QuickBuy/" + id + "/?key=" + key);
+                string answer = Web($"{host}/api/QuickBuy/{id}/?key={key}");
                 var b = JsonConvert.DeserializeObject<QAnswer>(answer);
                 return b.success;
             }
@@ -339,16 +382,16 @@ namespace MonoTM2
             }
         }
 
-		/// <summary>
-		/// Список отправленных маркетов трейдов
-		/// </summary>
-		public static MarketTrades MarketTrades(string key)
+        /// <summary>
+        /// Список отправленных маркетов трейдов
+        /// </summary>
+        public static MarketTrades MarketTrades(string host, string key)
         {
             try
             {
-                string answer = Web(Host + "/api/MarketTrades/?key=" + key);
+                string answer = Web($"{host}/api/MarketTrades/?key={key}");
                 var b = JsonConvert.DeserializeObject<MarketTrades>(answer);
-				return b.success ? b : null;
+                return b.success ? b : null;
             }
             catch
             {
@@ -356,34 +399,34 @@ namespace MonoTM2
             }
         }
 
-		/// <summary>
-		/// Обновить инвентарь
-		/// </summary>
-		public static void UpdateInvent(string key)
+        /// <summary>
+        /// Обновить инвентарь
+        /// </summary>
+        public static void UpdateInvent(string host, string key)
         {
-	        Web(Host + "/api/UpdateInventory/?key=" + key);
-			/* string answer = Web(Host + "/api/UpdateInventory/?key=" + key);
+            Web($"{host}/api/UpdateInventory/?key={key}");
+            /* string answer = Web($"{host}/api/UpdateInventory/?key={key}");
 
 			 var status = new { success = false };
 			 var inf = JsonConvert.DeserializeAnonymousType(answer, status);*/
-		}
+        }
 
         /// <summary>
         /// Удалить все ордеры на быструю покупку
         /// </summary>
         /// <param name="key">api key</param>
         /// <returns></returns>
-        public static bool DeleteAllOrders(string key)
+        public static bool DeleteAllOrders(string host, string key)
         {
             try
             {
-                string answer = Web(Host + "/api/DeleteOrders/?key=" + key);
+                string answer = Web($"{host}/api/DeleteOrders/?key={key}");
 #if DEBUG
                 System.Diagnostics.Debug.WriteLine(answer);
 #endif
                 var pr = new { success = false, deleted_orders = 0, error = "" };
                 var inf = JsonConvert.DeserializeAnonymousType(answer, pr);
-	            return inf.success;
+                return inf.success;
             }
             catch
             {
@@ -391,15 +434,15 @@ namespace MonoTM2
             }
         }
 
-		/// <summary>
-		/// Добавление ордера на покупку
-		/// </summary>
-        public static string ProcessOrder(Itm item, string key)
+        /// <summary>
+        /// Добавление ордера на покупку
+        /// </summary>
+        public static string ProcessOrder(Itm item, string host, string key)
         {
             try
             {
                 //https://market.csgo.com/api/ProcessOrder/[classid]/[instanceid]/[price]/?key=[your_secret_key]
-                string answer = Web(Host + string.Format("/api/ProcessOrder/{0}/{1}/?key={2}", item.id.Replace('_', '/'), item.price * 100, key));
+                string answer = Web($"{host}/api/ProcessOrder/{item.id.Replace('_', '/')}/{item.price * 100}/?key={key}");
                 var pr = new { success = false, way = "", error = "" };
                 var inf = JsonConvert.DeserializeAnonymousType(answer, pr);
                 if (inf.success)
@@ -423,20 +466,20 @@ namespace MonoTM2
         /// <param name="item">Предмет</param>
         /// <param name="key">api ключ</param>
         /// <param name="delNotif">Удалить уведомление</param>
-        public static ReturnResult<bool> Notification(Itm item, string key, bool delNotif)
+        public static ReturnResult<bool> Notification(Itm item, string host, string key, bool delNotif)
         {
             var result = new ReturnResult<bool>();
-            string answerStr ="";
+            string answerStr = "";
             try
             {
                 //https://market.csgo.com/api/UpdateNotification/[classid]/[instanceid]/[price]?key=[your_secret_key]
                 if (delNotif)
                 {
-                    answerStr = Web(Host + $"/api/UpdateNotification/{item.id.Replace('_', '/')}/0/?key={key}");
+                    answerStr = Web($"{host}/api/UpdateNotification/{item.id.Replace('_', '/')}/0/?key={key}");
                 }
                 else
                 {
-                    answerStr = Web(Host + $"/api/UpdateNotification/{item.id.Replace('_', '/')}/{item.price * 100}/?key={key}");
+                    answerStr = Web($"{host}/api/UpdateNotification/{item.id.Replace('_', '/')}/{item.price * 100}/?key={key}");
                 }
 
                 var pr = new { success = false, error = "" };
@@ -470,12 +513,12 @@ namespace MonoTM2
 		/// 10.01 - Bad key
 		/// 10.02 - Exception
 		/// 10.03 - Иная ошибка</returns>
-        public static double GetDiscounts(string key)
+        public static double GetDiscounts(string host, string key)
         {
             try
             {
                 //https://market.csgo.com/api/GetDiscounts/?key=[your_secret_key]
-                string answer = Web(Host + "/api/GetDiscounts/?key=" + key);
+                string answer = Web($"{host}/api/GetDiscounts/?key={key}");
 
                 var pr = new { success = false, discounts = new { sell_fee = "" }, error = "" };
                 var inf = JsonConvert.DeserializeAnonymousType(answer, pr);
@@ -505,20 +548,19 @@ namespace MonoTM2
         /// Получение дневной прибыли
         /// </summary>
         /// <returns>Примерная дневная прибыль в копейках</returns>
-        public static int GetProfit(string key)
+        public static int GetProfit(string host, string key)
         {
             try
             {
                 int spent = 0, earned = 0;
-                DateTime startDay = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 0, 0, 1);
-                DateTime endDay = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 23, 59, 59);
+                var startDay = new DateTimeOffset(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 0, 0, 1, TimeSpan.Zero).ToUnixTimeSeconds();
+                var endDay = new DateTimeOffset(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 23, 59, 59, TimeSpan.Zero).ToUnixTimeSeconds();
                 //https://market.csgo.com/api/OperationHistory/[start_time]/[end_time]/?key=[your_secret_key]
-                var answer = Web(Host + $"/api/OperationHistory/{(int)startDay.Subtract(new DateTime(1970, 1, 1)).TotalSeconds}/{(int)endDay.Subtract(new DateTime(1970, 1, 1)).TotalSeconds}/?key={key}");
-                var pr = new { success = false, history = new[] { new { h_event = "", recieved = "", stage = "" } } };
-                var inf = JsonConvert.DeserializeAnonymousType(answer, pr);
-                if (inf.success && inf.history != null)
+                var answer = OperationHistory(startDay,endDay, host, key);
+
+                if (answer.success && answer.dataResult != null)
                 {
-                    foreach (var i in inf.history)
+                    foreach (var i in answer.dataResult)
                     {
                         if (i.h_event == "sell_go")
                         {
@@ -543,13 +585,13 @@ namespace MonoTM2
             }
         }
 
-		/// <summary>
-		/// Уйти офлайн
-		/// </summary>
-        public static void GoOffline(string key)
+        /// <summary>
+        /// Уйти офлайн
+        /// </summary>
+        public static void GoOffline(string host, string key)
         {
             // https://market.csgo.com/api/GoOffline/?key=
-            Web(Host + "/api/GoOffline/?key=" + key);
+            Web($"{host}/api/GoOffline/?key={key}");
         }
 
         /// <summary>
@@ -557,13 +599,13 @@ namespace MonoTM2
         /// </summary>
         /// <param name="key">Api ключ</param>
         /// <returns>Возвращает переменную с двумя значениями: getCount - сколько нужно принять; outCount - сколько нужно передать</returns>
-        public static InventOffersInfo CountItemsToTransfer(string key)
+        public static InventOffersInfo CountItemsToTransfer(string host, string key)
         {
             try
             {
                 var returnVariable = new InventOffersInfo();
 
-                string resp = Web(Host + "/api/Trades/?key=" + key);
+                string resp = Web($"{host}/api/Trades/?key={key}");
                 resp = resp.Insert(0, "{\"items\":");
                 resp += "}";
                 var items = JsonConvert.DeserializeObject<Trades>(resp);
@@ -572,10 +614,10 @@ namespace MonoTM2
                     switch (item.ui_status)
                     {
                         case "4":
-                            returnVariable.getCount++;
+                            returnVariable.outCount++;
                             break;
                         case "2":
-                            returnVariable.outCount++;
+                            returnVariable.inCount++;
                             break;
                     }
                 }
@@ -590,11 +632,11 @@ namespace MonoTM2
         /// <summary>
         /// Получить список включенных уведомлений о изменении цены
         /// </summary>
-        public static ReturnResult<List<NotificationsItems>> GetNotifications(string key)
+        public static ReturnResult<List<NotificationsItems>> GetNotifications(string host, string key)
         {
             //https://market.csgo.com/api/GetNotifications/?key=[your_secret_key]
             var result = new ReturnResult<List<NotificationsItems>>();
-            string answerStr = Web(Host + "/api/GetNotifications/?key=" + key);
+            string answerStr = Web($"{host}/api/GetNotifications/?key={key}");
             try
             {
                 var desirAns = JsonConvert.DeserializeObject<CNotifications>(answerStr);
@@ -612,7 +654,7 @@ namespace MonoTM2
 
                 return result;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 return new ReturnResult<List<NotificationsItems>>
                 {
@@ -645,11 +687,11 @@ namespace MonoTM2
         /// 2 - Получить дополнительно хэш для покупки, ссылку на картинку
         /// 3 - Получать дополнительно описание предмета и теги из Steam</param>
         /// <returns>MassInfo</returns>
-        public static ReturnResult<List<MassInfoResult>> MassInfo(string key, string data, uint sell = 2, uint buy = 0, uint history = 0, uint info = 0 )
+        public static ReturnResult<List<MassInfoResult>> MassInfo(string host, string key, string data, uint sell = 2, uint buy = 0, uint history = 0, uint info = 0)
         {
             //https://market.csgo.com/api/MassInfo/[SELL]/[BUY]/[HISTORY]/[INFO]?key=[your_secret_key]
             var result = new ReturnResult<List<MassInfoResult>>();
-            var answer = Web($"{Host}/api/MassInfo/{sell}/{buy}/{history}/{info}/?key={key}", list: data);
+            var answer = Web($"{host}/api/MassInfo/{sell}/{buy}/{history}/{info}/?key={key}", list: data);
             try
             {
                 var desirAns = JsonConvert.DeserializeObject<MassInfo>(answer);
@@ -663,9 +705,9 @@ namespace MonoTM2
                 {
                     result.errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{desirAns.error}\nData:{answer}\n{_line}";
                 }
-				return result;
+                return result;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 return new ReturnResult<List<MassInfoResult>>
                 {
@@ -678,11 +720,11 @@ namespace MonoTM2
         /// <summary>
         /// Получение инвентаря Steam, только те предметы, которые Вы еще не выставили на продажу.
         /// </summary>
-        public static ReturnResult<List<GetInvDatum>> GetInv(string key)
+        public static ReturnResult<List<GetInvDatum>> GetInv(string host, string key)
         {
             //https://market.csgo.com/api/GetInv/?key=[your_secret_key]
             var result = new ReturnResult<List<GetInvDatum>>();
-            var answerStr = Web($"{Host}/api/GetInv/?key={key}", 2000);
+            var answerStr = Web($"{host}/api/GetInv/?key={key}", 2000);
             try
             {
                 var desirAns = JsonConvert.DeserializeObject<GetInv>(answerStr);
@@ -716,14 +758,14 @@ namespace MonoTM2
         /// <param name="item">Предмет для выставления типа GetInvDatum</param>
         /// <param name="price">Цена в копейках</param>
         /// <returns>true - выставлен</returns>
-        public static ReturnResult<bool> SetPrice(GetInvDatum item, int price, string key)
+        public static ReturnResult<bool> SetPrice(GetInvDatum item, int price, string host, string key)
         {
             //https://market.csgo.com/api/SetPrice/new_[classid]_[instanceid]/[price]/?key=[your_secret_key]
             var result = new ReturnResult<bool>();
-            var answerStr = Web($"{Host}/api/SetPrice/{item.ui_id}/{price}?key={key}", 2000);
+            var answerStr = Web($"{host}/api/SetPrice/{item.ui_id}/{price}?key={key}", 2000);
             try
             {
-                var type = new {success = false, error = "", result = 0, price = 0};
+                var type = new { success = false, error = "", result = 0, price = 0 };
 
                 var desirAns = JsonConvert.DeserializeAnonymousType(answerStr, type);
 
@@ -734,14 +776,15 @@ namespace MonoTM2
                     result.success = false;
                     result.errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{desirAns.error}\nData:{answerStr}\n{_line}";
                 }
-                    
+
                 return result;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                return new ReturnResult<bool>{
+                return new ReturnResult<bool>
+                {
                     success = false,
-                    errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}" 
+                    errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}"
                 };
             }
         }
@@ -749,14 +792,14 @@ namespace MonoTM2
         /// <summary>
         /// Получить предложения о продаже определенного предмета.
         /// </summary>
-        public static ReturnResult<List<Offer>> SellOffers(string classid, string instanceid, string key)
+        public static ReturnResult<List<Offer>> SellOffers(string classid, string instanceid, string host, string key)
         {
             //https://market.csgo.com/api/SellOffers/[classid]_[instanceid]/?key=[your_secret_key]
             var result = new ReturnResult<List<Offer>>();
-            var answerStr = Web($"{Host}/api/SellOffers/{classid}_{instanceid}?key={key}", 2000);
+            var answerStr = Web($"{host}/api/SellOffers/{classid}_{instanceid}?key={key}", 2000);
             try
             {
-                var type = new {success = false, error = "", offers = new List<Offer>(), best_offer = ""};
+                var type = new { success = false, error = "", offers = new List<Offer>(), best_offer = "" };
                 var desirAns = JsonConvert.DeserializeAnonymousType(answerStr, type);
 
                 result.success = desirAns.success;
@@ -787,14 +830,14 @@ namespace MonoTM2
         /// </summary>
         /// <param name="startTime">unix time в секундах начала периода</param>
         /// <param name="endTime">unix time в секундах конца периода</param>
-        public static ReturnResult<List<OperationHistory>> OperationHistory(long startTime, long endTime, string key)
+        public static ReturnResult<List<OperationHistory>> OperationHistory(long startTime, long endTime, string host, string key)
         {
             //https://market.csgo.com/api/OperationHistory/[start_time]/[end_time]/?key=[your_secret_key]
-            var answerStr = Web(Host + $"/api/OperationHistory/{startTime}/{endTime}/?key={key}");
+            var answerStr = Web($"{host}/api/OperationHistory/{startTime}/{endTime}/?key={key}");
             var result = new ReturnResult<List<OperationHistory>>();
             try
             {
-                var pr = new {success = false, history = new List<OperationHistory>(), error = ""};
+                var pr = new { success = false, history = new List<OperationHistory>(), error = "" };
                 var desirAns = JsonConvert.DeserializeAnonymousType(answerStr, pr);
 
                 result.success = desirAns.success;
