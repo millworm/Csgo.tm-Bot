@@ -157,19 +157,19 @@ namespace MonoTM2
                             break;
 
                         //удалить предмет
-                        /*  case "delete":
+                          case "delete":
                           case "d":
-                              ConsoleInputOutput.OutputMessage("Введите номер");
+                              var hostDelete = GetPlace();
+                            ConsoleInputOutput.OutputMessage("Введите номер");
                               var N = Convert.ToInt16(Console.ReadLine());
-                              ConsoleInputOutput.OutputMessage($"Удалить {bot.GetItem(N).name}  ?");
+                              ConsoleInputOutput.OutputMessage($"Удалить {bot.GetItem(N, hostDelete).name}  ?");
                               var A = Console.ReadLine().ToLowerInvariant();
                               if (A == "y")
                               {
-                                  bot.RemoveItem(N);
+                                  bot.RemoveItem(N, hostDelete);
                                   ConsoleInputOutput.OutputMessage("Удалено");
                               }
-
-                              break;*/
+                              break;
                         case "stime":
                             var hostStime = GetPlace();
                             ConsoleInputOutput.OutputMessage("Введите время");

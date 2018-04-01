@@ -1222,23 +1222,32 @@ namespace MonoTM2
         {
             Close = true;
 
-            /*UpdatePriceTimer.Stop();
-			pinPongTimer.Stop();
-
-			UpdatePriceTimer.Dispose();
-			pinPongTimer.Dispose();
-
-			client.Close();
-
-		    Functions.DeleteAllOrders(cfg.key);
-
-            for (var i = 0; i < Items.Count; i++)
+            foreach (var timer in Timers)
             {
-                RemoveItem(i);
-                Thread.Sleep(cfg.Itimer);
+                timer.Value.Stop();
+                timer.Value.Dispose();
             }
 
-            Functions.GoOffline(cfg.key);*/
+            pinPongTimer.Stop();
+            pinPongTimer.Dispose();
+
+            client.Close();
+
+
+            foreach (var host in Items)
+            {
+                Functions.DeleteAllOrders(host.Key, cfg.key);
+
+
+                for (var i = 0; i < host.Value.Count; i++)
+                {
+                    RemoveItem(i, host.Key);
+                    Thread.Sleep(cfg.Itimer);
+                }
+
+                Functions.GoOffline(host.Key, cfg.key);
+
+            }
         }
 
         public void CreateAuth()
