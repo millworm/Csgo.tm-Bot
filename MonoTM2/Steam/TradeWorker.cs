@@ -74,7 +74,7 @@ namespace MonoTM2
             switch (type)
             {
                 case TypeTrade.IN:
-                    _incomingTradeDelegate.BeginInvoke(host,res => OnIncomingTrade?.Invoke(this, null), null);
+                    _incomingTradeDelegate.BeginInvoke(host,res => OnIncomingTrade?.Invoke(host, null), null);
                     /*if (IIncomingTradeResult == null || IIncomingTradeResult.IsCompleted)
                     {
                         IIncomingTradeResult = _incomingTradeDelegate.BeginInvoke(null, null);
@@ -82,7 +82,7 @@ namespace MonoTM2
                     }*/
                     break;
                 case TypeTrade.OUT:
-                    _outgoingTradeDelegate.BeginInvoke(host,res => OnOutgoingTrade?.Invoke(this, null), null);
+                    _outgoingTradeDelegate.BeginInvoke(host,res => OnOutgoingTrade?.Invoke(host, null), null);
                     /*if (IOutgoingTradeResult == null || IOutgoingTradeResult.IsCompleted)
                     {
                         IOutgoingTradeResult = _outgoingTradeDelegate.BeginInvoke(EventStarter, null);
