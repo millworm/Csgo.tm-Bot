@@ -605,7 +605,7 @@ namespace MonoTM2
                     tradeWorker.AcceptTrade(TypeTrade.IN, host);
                 //AcceptTradeAction.Invoke();
                 //AcceptMobileOrdersAction.Invoke();
-                SetItems(host, null);
+                SetItems(host,null, null);
             }
         }
 
