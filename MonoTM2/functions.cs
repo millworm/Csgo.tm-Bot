@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Linq;
 using System.Threading.Tasks;
 using MonoTM2.Classes;
+using MonoTM2.Const;
 using MonoTM2.InputOutput;
 
 namespace MonoTM2
@@ -562,11 +563,11 @@ namespace MonoTM2
                 {
                     foreach (var i in answer.dataResult)
                     {
-                        if (i.h_event == "sell_go")
+                        if (i.h_event == GetPlace(host,"sell"))
                         {
                             earned += Convert.ToInt32(i.recieved);
                         }
-                        if (i.h_event == "buy_go" && i.stage != "5")
+                        if (i.h_event == GetPlace(host, "buy") && i.stage != "5")
                         {
                             spent += Convert.ToInt32(i.recieved);
                         }
@@ -861,6 +862,29 @@ namespace MonoTM2
                         $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}"
                 };
             }
+        }
+
+        public static string GetPlace(string host, string type)
+        {
+            var place = new StringBuilder();
+            place.Append(type);
+            place.Append("_");
+            switch (host)
+            {
+                case Host.CSGO:
+                    place.Append("go");
+                    break;
+                case Host.DOTA2:
+                    place.Append("cs");
+                    break;
+                case Host.PUBG:
+                    place.Append("pb");
+                    break;
+                default:
+                    ConsoleInputOutput.OutputMessage("Площадка не найдена", MessageType.Error);
+                    return null;
+            }
+            return place.ToString();
         }
     }
 }

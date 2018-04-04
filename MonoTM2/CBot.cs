@@ -245,7 +245,7 @@ namespace MonoTM2
                             var ans1 = JsonConvert.DeserializeAnonymousType(answerItemout, TemplItemout_new_go);
                             switch (ans1.data.ui_status)
                             {
-                                case "3":
+                                case "2":
                                     WriteMessage("Передать вещи", MessageType.GiveWeapon);
 
                                     tradeWorker.AcceptTrade(TypeTrade.IN, socketAnswerHost);
@@ -1107,21 +1107,8 @@ namespace MonoTM2
             inv = !inv.success && inv.errorMessage.IndexOf("обновите", StringComparison.InvariantCultureIgnoreCase) == -1 ? inv : Functions.GetInv(host, cfg.key);
             if (inv.success && inv.dataResult.Count > 0)
             {
-                var buyPlace = "";
-                switch (host)
-                {
-                    case Host.CSGO: buyPlace = "buy_go";
-                        break;
-                    case Host.DOTA2:
-                        buyPlace = "buy_cs";
-                        break;
-                    case Host.PUBG:
-                        buyPlace = "buy_pb";
-                        break;
-                    default:
-                        ConsoleInputOutput.OutputMessage("Площадка не найдена", MessageType.Error);
-                        return;
-                }
+               var buyPlace = Functions.GetPlace(host, "buy");
+
                 var discount = 1 - Convert.ToDouble(setting.Discount / 100);
                 //double profit;
                 var history = Functions.OperationHistory(DateTimeOffset.Now.AddHours(-4).ToUnixTimeSeconds(),

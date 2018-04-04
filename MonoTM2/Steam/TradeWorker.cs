@@ -129,6 +129,7 @@ namespace MonoTM2
                     if (offer?.success == true)
                     {
                         AcceptTrade(Convert.ToUInt32(offer.trade), Convert.ToUInt32(bot_id), TypeTrade.OUT);
+                        Functions.UpdateInvent(host, _config.key);
                     }
                 }
 
@@ -188,6 +189,7 @@ namespace MonoTM2
             }
             finally
             {
+               
                 _incomingTradeCounter.Release();
             }
         }
@@ -200,6 +202,7 @@ namespace MonoTM2
         /// <returns>True - если обмен принят, иначе False</returns>
         bool AcceptTrade(uint tradeId, uint botId, TypeTrade type)
         {
+            if (_offers.ContainsKey(tradeId)) return false;
             _offers.Add(tradeId, type);
             try
             {
