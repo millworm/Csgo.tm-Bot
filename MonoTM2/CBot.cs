@@ -315,7 +315,7 @@ namespace MonoTM2
                 }
                 catch (Exception e)
                 {
-#if !DEBUG
+#if DEBUG
                     System.Diagnostics.Debug.WriteLine(e.Message + Environment.NewLine + ee.Data);
                     using (var sw = new System.IO.StreamWriter("sockets.txt", true))
                         sw.WriteLine($"{new string('-', 50)}\n{ee.Data}\n{new string('-', 50)}");
