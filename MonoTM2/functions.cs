@@ -875,7 +875,7 @@ namespace MonoTM2
                     place.Append("go");
                     break;
                 case Host.DOTA2:
-                    place.Append("cs");
+                    place.Append("dota");
                     break;
                 case Host.PUBG:
                     place.Append("pb");

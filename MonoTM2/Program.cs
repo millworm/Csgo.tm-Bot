@@ -28,7 +28,9 @@ namespace MonoTM2
                     switch (Mess.ToLowerInvariant())
                     {
                         case "s":
-                            bot.SetItems("Console", null);
+                            bot.SetItems(Const.Host.PUBG, null);
+                            bot.SetItems(Const.Host.DOTA2, null);
+                            bot.SetItems(Const.Host.CSGO, null);
                             break;
                         case "c":
                             Console.Clear();
