@@ -164,7 +164,7 @@ namespace MonoTM2
                     }
                     //Получаем оффер
                     ConsoleInputOutput.OutputMessage("Получаем оффер");
-                    var offer = Functions.GetOffer("1", _config.key, "in");
+                    var offer = Functions.GetOffer("1", host, _config.key, "in");
 
                     if (offer?.success == true)
                     {

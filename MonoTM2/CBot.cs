@@ -315,12 +315,13 @@ namespace MonoTM2
                 }
                 catch (Exception e)
                 {
-#if DEBUG
+#if !DEBUG
                     System.Diagnostics.Debug.WriteLine(e.Message + Environment.NewLine + ee.Data);
+                    using (var sw = new System.IO.StreamWriter("sockets.txt", true))
+                        sw.WriteLine($"{new string('-', 50)}\n{ee.Data}\n{new string('-', 50)}");
 
-
-                    if (type.type != "newitems_go" && type.type != "webnotify")
-                        Console.WriteLine("Error " + type.type + " " + e.Message + Environment.NewLine + Environment.NewLine  + Environment.NewLine + Environment.NewLine + answer + Environment.NewLine + Environment.NewLine);
+                   /* if (type.type != "newitems_go" && type.type != "webnotify")
+                        Console.WriteLine("Error " + type.type + " " + e.Message + Environment.NewLine + Environment.NewLine  + Environment.NewLine + Environment.NewLine + ee.Data + Environment.NewLine + Environment.NewLine);*/
 #endif
                 }
             };
@@ -1106,6 +1107,21 @@ namespace MonoTM2
             inv = !inv.success && inv.errorMessage.IndexOf("обновите", StringComparison.InvariantCultureIgnoreCase) == -1 ? inv : Functions.GetInv(host, cfg.key);
             if (inv.success && inv.dataResult.Count > 0)
             {
+                var buyPlace = "";
+                switch (host)
+                {
+                    case Host.CSGO: buyPlace = "buy_go";
+                        break;
+                    case Host.DOTA2:
+                        buyPlace = "buy_cs";
+                        break;
+                    case Host.PUBG:
+                        buyPlace = "buy_pb";
+                        break;
+                    default:
+                        ConsoleInputOutput.OutputMessage("Площадка не найдена", MessageType.Error);
+                        return;
+                }
                 var discount = 1 - Convert.ToDouble(setting.Discount / 100);
                 //double profit;
                 var history = Functions.OperationHistory(DateTimeOffset.Now.AddHours(-4).ToUnixTimeSeconds(),
@@ -1115,7 +1131,7 @@ namespace MonoTM2
                 {
                     var buyList = history.dataResult.FindAll(item =>
                         item.stage == "2"
-                        && item.h_event == "buy_go"
+                        && item.h_event == buyPlace
                         && (item.classid == itm.i_classid && item.instanceid == itm.i_instanceid
                             || item.market_hash_name == itm.i_market_hash_name));
 
@@ -1159,11 +1175,12 @@ namespace MonoTM2
                 }
             }
             else
+
             {
                 if (inv.errorMessage != null)
                 {
                     WriteMessage(inv.errorMessage, MessageType.Error);
-                    if (inv.errorMessage.IndexOf("обновите", StringComparison.InvariantCultureIgnoreCase) != -1)
+                    if (inv.errorMessage.IndexOf("обновите", StringComparison.InvariantCultureIgnoreCase) != -1 || inv.errorMessage.IndexOf("виден", StringComparison.InvariantCultureIgnoreCase) != -1)
                         Functions.UpdateInvent(host, cfg.key);
                 }
             }
