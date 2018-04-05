@@ -111,7 +111,7 @@ namespace MonoTM2
                     timer.Elapsed += (sender, e) => PriceCorrectTimer(sender, e, m.Key);
                     //   timer.Site = new 
                 }
-
+            Save(TypeSave.Items);
             }
 
             pinPongTimer.Elapsed += PingPongTimer;
@@ -191,7 +191,7 @@ namespace MonoTM2
                             id = ansWeb.data.classid + "_" + ansWeb.data.instanceid;
 
 
-                            var ItemInListWeb = Items[socketAnswerHost].First(itm => itm.id == id); //&& item.price >= (t.data.ui_price));
+                            var ItemInListWeb = Items[socketAnswerHost].First(itm => itm.id == id && itm.NeedBuy); //&& item.price >= (t.data.ui_price));
 
                             if (ItemInListWeb != null && (Functions.Buy(ItemInListWeb, socketAnswerHost, cfg.key) || Functions.Buy(ItemInListWeb, socketAnswerHost, cfg.key, 100)))
                             {
@@ -276,7 +276,7 @@ namespace MonoTM2
                             WSItm t = JsonConvert.DeserializeObject<WSItm>(answerNewitems);
 
                             id = t.data.i_classid + "_" + t.data.i_instanceid;
-                            var ItemInList = Items[Host.CSGO].Find(item => item.id == id); //&& item.price >= (t.data.ui_price));
+                            var ItemInList = Items[Host.CSGO].Find(item => item.id == id && item.NeedBuy); //&& item.price >= (t.data.ui_price));
 
                             if (ItemInList != null && (ItemInList.price >= (t.data.ui_price)))
                             {
@@ -315,7 +315,7 @@ namespace MonoTM2
                 }
                 catch (Exception e)
                 {
-#if DEBUG
+#if !DEBUG
                     System.Diagnostics.Debug.WriteLine(e.Message + Environment.NewLine + ee.Data);
                     using (var sw = new System.IO.StreamWriter("sockets.txt", true))
                         sw.WriteLine($"{new string('-', 50)}\n{ee.Data}\n{new string('-', 50)}");
@@ -368,7 +368,7 @@ namespace MonoTM2
                     {
                         for (int j = 0; j < host.Value.Count; j++)
                         {
-                            if (!cfg.MarketsSettings[host.Key].Enable) continue;
+                            if (!cfg.MarketsSettings[host.Key].Enable || !host.Value[j].NeedBuy) continue;
 
                             if (Functions.Buy(host.Value[j], host.Key, cfg.key))
                             {
@@ -1100,7 +1100,12 @@ namespace MonoTM2
         /// </summary>
 	    public void SetItems(object sender, EventArgs e)
         {
+            
             var host = (string)sender;
+
+            Functions.UpdateInvent(host, cfg.key);
+            Thread.Sleep(3000);
+
             var setting = cfg.MarketsSettings[host];
             //Получаем список вещей в инвентаре
             var inv = Functions.GetInv(host, cfg.key);
@@ -1116,6 +1121,7 @@ namespace MonoTM2
 
                 foreach (var itm in inv.dataResult)
                 {
+                    var itemFromItemList = Items[host].Find(fnd => fnd.id == $"{itm.i_classid}_{itm.i_instanceid}");
                     var buyList = history.dataResult.FindAll(item =>
                         item.stage == "2"
                         && item.h_event == buyPlace
@@ -1123,7 +1129,9 @@ namespace MonoTM2
                             || item.market_hash_name == itm.i_market_hash_name));
 
                     //если в истории не нашли покупку, то выходим
-                    if (buyList.Count == 0) continue;
+                    if (buyList.Count == 0 && 
+                        itemFromItemList.NeedBuy && 
+                        itemFromItemList.SetItemType == TypeForSetItem.Auto) continue;
 
                     ////получаем прибыль
                     //var itemFromBuyList = Items.Find(i => i.id == $"{itm.i_classid}_{itm.i_instanceid}");
@@ -1142,10 +1150,18 @@ namespace MonoTM2
                     var sellOffers = Functions.SellOffers(buyList[0].classid, buyList[0].instanceid, host, cfg.key);
 
                     if (!sellOffers.success) continue;
-                    var priceForSet = getPriceForSet(
-                        new Itm { id = $"{buyList[0].classid}_{buyList[0].instanceid}" },
-                        sellOffers.dataResult,
-                        buyPrice);
+                    int priceForSet = 0;
+
+                    switch (itemFromItemList.SetItemType)
+                    {
+                        case TypeForSetItem.Auto:
+                            priceForSet = getPriceForSet(new Itm {id = $"{buyList[0].classid}_{buyList[0].instanceid}"},
+                                sellOffers.dataResult,
+                                buyPrice);
+                            break;
+                        case TypeForSetItem.Manual:
+                            break;
+                    }
 
                     // var recievedMoney = (int)(priceForSet * discount - profit);
                     var recievedMoney = (int)(priceForSet * discount);
@@ -1155,14 +1171,12 @@ namespace MonoTM2
                         WriteMessage($"Выставлен {itm.i_market_hash_name} за {priceForSet} коп.", MessageType.Info);
                     }
                     else
-                        if (sender != null && sender.Equals("Console"))
                     {
                         WriteMessage($"Куплен за {buyPrice}\r\nцена для выставления {priceForSet}\r\nполучено {recievedMoney}", MessageType.Info);
                     }
                 }
             }
             else
-
             {
                 if (inv.errorMessage != null)
                 {

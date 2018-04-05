@@ -166,9 +166,13 @@ namespace MonoTM2
         /// <summary>
         /// Персональная прибыль к предмету
         /// </summary>
-        public double profit { get; set; } = 0;
+        public double profit { get; set; } = 0.0;
         //public bool turn { get; set; }
         public PriceCheck priceCheck { get; set; } = PriceCheck.Price;
+
+        public TypeForSetItem SetItemType { get; set; } = TypeForSetItem.Auto;
+        public int PriceForSetItem { get; set; } = 0;
+        public bool NeedBuy { get; set; } = true;
     }
     [Serializable]
     public class WSItm

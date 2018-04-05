@@ -44,7 +44,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
-    <Optimize>false</Optimize>
+    <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
@@ -75,6 +75,7 @@
     <Compile Include="CBot.cs" />
     <Compile Include="Classes\Classes.cs" />
     <Compile Include="Classes\GetInv.cs" />
+    <Compile Include="Classes\TypeForSetItem.cs" />
     <Compile Include="Const\Host.cs" />
     <Compile Include="Classes\Hosts\Market.cs" />
     <Compile Include="Classes\MassInfo.cs" />
