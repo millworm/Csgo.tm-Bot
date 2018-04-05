@@ -111,9 +111,9 @@ namespace MonoTM2
                     timer.Elapsed += (sender, e) => PriceCorrectTimer(sender, e, m.Key);
                     //   timer.Site = new 
                 }
-            Save(TypeSave.Items);
-            }
 
+            }
+            Save(TypeSave.Items);
             pinPongTimer.Elapsed += PingPongTimer;
             pinPongTimer.Interval = cfg.PingPongTimerTime * 60 * 1000;
 
@@ -1160,6 +1160,7 @@ namespace MonoTM2
                                 buyPrice);
                             break;
                         case TypeForSetItem.Manual:
+                            priceForSet = itemFromItemList.PriceForSetItem;
                             break;
                     }
 
