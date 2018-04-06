@@ -136,18 +136,11 @@ namespace MonoTM2
                                 foreach (var item in host.Value)
                                 {
                                     var profitList = bot.GetPrice(host.Key);
-                                    var nameList = $"{item.name,-40}";
+                                    var nameList = $"{item.name.Substring(0, item.name.Length>40 ? 40 : item.name.Length),-40}";
                                     string typeList = Convert.ToString(item.priceCheck).Substring(0, 5);
-                                    if (item.profit != 0)
-                                    {
+
                                         sb.AppendLine(
-                                            $"[{n++:00}]{$"[{place}]",-7} {nameList}\t{item.price}\t{item.profit}\t{typeList}");
-                                    }
-                                    else
-                                    {
-                                        sb.AppendLine(
-                                            $"[{n++:00}]{$"[{place}]",-7} {nameList}\t{item.price}\t{profitList}\t{typeList}");
-                                    }
+                                            $"[{n++:00}]{$"[{place}]",-7} {nameList}\t{item.price}\t{(item.profit != 0?item.profit: profitList)}\t{typeList}");
                                 }
                                 if(host.Value.Count > 0)
                                     sb.AppendLine(new string('-', 50));
