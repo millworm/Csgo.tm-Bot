@@ -43,7 +43,7 @@ namespace MonoTM2
         {
             _offers = new Dictionary<uint, TypeTrade>();
 
-            _incomingTradeCounter = new Semaphore(3, 5);
+            _incomingTradeCounter = new Semaphore(3, 4);
             _incomingTradeDelegate = IncomingTrade;
             _outgoingTradeDelegate = OutgoingTrade;
 
@@ -103,7 +103,7 @@ namespace MonoTM2
            try
             {
                 //проверяем наличие входящих трейдов от маркета
-                var tradeList = Functions.MarketTrades(host, _config.key);
+               /* var tradeList = Functions.MarketTrades(host, _config.key);
 
                 if (tradeList?.success == true && tradeList.trades.Count != 0)
                 {
@@ -114,7 +114,7 @@ namespace MonoTM2
                         AcceptTrade(Convert.ToUInt32(trade.trade_id), Convert.ToUInt32(trade.bot_id), TypeTrade.OUT);
                         //TODO дописать проверку на наличие обменов
                     }
-                }
+                }*/
 
                 //Запрашиваем бота
                 ConsoleInputOutput.OutputMessage("Запрашиваем бота");
@@ -151,7 +151,7 @@ namespace MonoTM2
                 if (accountFileExist)
                 {
                     //проверяем наличие входящих трейдов от маркета
-                    var tradeList = Functions.MarketTrades(host, _config.key);
+                 /*   var tradeList = Functions.MarketTrades(host, _config.key);
 
                     if (tradeList?.success == true && tradeList.trades.Count != 0)
                     {
@@ -162,7 +162,7 @@ namespace MonoTM2
                             AcceptTrade(Convert.ToUInt32(trade.trade_id), Convert.ToUInt32(trade.bot_id), TypeTrade.IN);
                             AcceptConfirmations();
                         }
-                    }
+                    }*/
                     //Получаем оффер
                     ConsoleInputOutput.OutputMessage("Получаем оффер");
                     var offer = Functions.GetOffer("1", host, _config.key, "in");
@@ -179,6 +179,7 @@ namespace MonoTM2
 
                         //Подтверждаем в мобильной версии
                         AcceptConfirmations();
+                        Functions.UpdateInvent(host, _config.key);
 
                     }
                 }

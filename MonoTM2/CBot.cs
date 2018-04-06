@@ -111,9 +111,10 @@ namespace MonoTM2
                     timer.Elapsed += (sender, e) => PriceCorrectTimer(sender, e, m.Key);
                     //   timer.Site = new 
                 }
-
             }
+
             Save(TypeSave.Items);
+
             pinPongTimer.Elapsed += PingPongTimer;
             pinPongTimer.Interval = cfg.PingPongTimerTime * 60 * 1000;
 
@@ -542,7 +543,8 @@ namespace MonoTM2
                 var l = QuickItemsList.Where(
                         q => Items.Any(
                             i => i.Value.Any(j => j.id == q.i_classid + "_" + q.i_instanceid &&
-                                 Convert.ToDouble(q.l_paid) < j.price * 100)))
+                                 Convert.ToDouble(q.l_paid) < j.price * 100 &&
+                                 j.NeedBuy)))
                     .ToList();
 
                 if (l.Count > 0)
@@ -820,6 +822,7 @@ namespace MonoTM2
                 {
                     foreach (var item in host.Value)
                     {
+                        if (!item.NeedBuy) continue;
                         ans = Functions.ProcessOrder(item, host.Key, cfg.key);
                         if (!ans.Contains("error"))
                             Thread.Sleep(cfg.Itimer);
@@ -856,6 +859,8 @@ namespace MonoTM2
             {
                 for (int i = 0; i < Items[host].Count; i++)
                 {
+                    if (!Items[host][i].NeedBuy) continue;
+
                     answer = Functions.Notification(Items[host][i], host, cfg.key, false);
 
                     if (answer.success)
@@ -1011,6 +1016,8 @@ namespace MonoTM2
 
                 for (int i = j * 100; i < limit; i++)
                 {
+                    if (!items[i].NeedBuy) continue;
+
                     data.Append(items[i].id);
                     data.Append(",");
                 }
