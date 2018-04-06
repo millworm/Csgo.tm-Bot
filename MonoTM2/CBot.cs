@@ -1003,15 +1003,16 @@ namespace MonoTM2
         /// </summary>
         private void MassUpdate(string host)
         {
-
             var data = new StringBuilder();
 
             var items = Items[host];
-            if (items.Count == 0) return;
+            if (items.Count == 0 || !cfg.MarketsSettings[host].Enable) return;
+
             int iterationsCount = items.Count / 100;
             for (int j = 0; j <= iterationsCount; j++)
             {
                 data.Clear();
+
                 var limit = items.Count < 100 ? items.Count : 2 * j * 100;
 
                 for (int i = j * 100; i < limit; i++)
@@ -1021,6 +1022,7 @@ namespace MonoTM2
                     data.Append(items[i].id);
                     data.Append(",");
                 }
+                if (data.Length == 0) continue;
                 data.Remove(data.Length - 1, 1);
 
                 var ans = Functions.MassInfo(host, cfg.key, data.ToString());
