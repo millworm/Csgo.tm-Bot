@@ -186,21 +186,34 @@ namespace MonoTM2
                             if (answerWebnotify.Contains("csgo"))
                                 socketAnswerHost = Host.CSGO;
 
-                            var ansWeb = JsonConvert.DeserializeAnonymousType(answerWebnotify, webnotify);
-                            //if (ansWeb != null && ansWeb.data.way == null)
-                            //{
-                            id = ansWeb.data.classid + "_" + ansWeb.data.instanceid;
-
-
-                            var ItemInListWeb = Items[socketAnswerHost].First(itm => itm.id == id && itm.NeedBuy); //&& item.price >= (t.data.ui_price));
-
-                            if (ItemInListWeb != null && (Functions.Buy(ItemInListWeb, socketAnswerHost, cfg.key) || Functions.Buy(ItemInListWeb, socketAnswerHost, cfg.key, 100)))
+                            if (cfg.MarketsSettings[socketAnswerHost].Enable)
                             {
-                                WriteMessage(string.Format("*webnotify* {0} куплен за {1} ({2})", ItemInListWeb.name, ansWeb.data.price, ItemInListWeb.price), MessageType.BuyWeapon);
-                            }
-                            else
-                            {
-                                WriteMessage(string.Format("*webnotify* Не успел купить {0} выставлен за {1} ({2})", ItemInListWeb.name, ansWeb.data.price, ItemInListWeb.price), MessageType.Socket);
+                                var ansWeb = JsonConvert.DeserializeAnonymousType(answerWebnotify, webnotify);
+                                //if (ansWeb != null && ansWeb.data.way == null)
+                                //{
+                                id = ansWeb.data.classid + "_" + ansWeb.data.instanceid;
+
+
+                                var ItemInListWeb =
+                                    Items[socketAnswerHost]
+                                        .First(itm =>
+                                            itm.id == id && itm.NeedBuy); //&& item.price >= (t.data.ui_price));
+
+                                if (ItemInListWeb != null &&
+                                    (Functions.Buy(ItemInListWeb, socketAnswerHost, cfg.key) ||
+                                     Functions.Buy(ItemInListWeb, socketAnswerHost, cfg.key, 100)))
+                                {
+                                    WriteMessage(
+                                        string.Format("*webnotify* {0} куплен за {1} ({2})", ItemInListWeb.name,
+                                            ansWeb.data.price, ItemInListWeb.price), MessageType.BuyWeapon);
+                                }
+                                else
+                                {
+                                    WriteMessage(
+                                        string.Format("*webnotify* Не успел купить {0} выставлен за {1} ({2})",
+                                            ItemInListWeb.name, ansWeb.data.price, ItemInListWeb.price),
+                                        MessageType.Socket);
+                                }
                             }
                             //}
                             break;
@@ -396,13 +409,10 @@ namespace MonoTM2
             UpdateDiscount();
 
             foreach (var mark in cfg.MarketsSettings)
-                if (mark.Value.Enable)
-                    WriteMessage($"Скидка на {mark.Key} - {mark.Value.Discount}%", MessageType.Info);
-
-            foreach (var mark in cfg.MarketsSettings)
             {
                 if (mark.Value.Enable)
                 {
+                    WriteMessage($"Скидка на {mark.Key} - {mark.Value.Discount}%", MessageType.Info);
                     MassUpdate(mark.Key);
                 }
             }
@@ -1112,10 +1122,10 @@ namespace MonoTM2
             
             var host = (string)sender;
 
-            Functions.UpdateInvent(host, cfg.key);
-            Thread.Sleep(3000);
-
             var setting = cfg.MarketsSettings[host];
+
+            if (!setting.Enable) return;
+
             //Получаем список вещей в инвентаре
             var inv = Functions.GetInv(host, cfg.key);
             inv = !inv.success && inv.errorMessage.IndexOf("обновите", StringComparison.InvariantCultureIgnoreCase) == -1 ? inv : Functions.GetInv(host, cfg.key);
@@ -1130,7 +1140,7 @@ namespace MonoTM2
 
                 foreach (var itm in inv.dataResult)
                 {
-                    var itemFromItemList = Items[host].Find(fnd => fnd.id == $"{itm.i_classid}_{itm.i_instanceid}");
+                    var itemFromItemList = Items[host].Find(fnd => fnd.id == $"{itm.i_classid}_{itm.i_instanceid}" || fnd.name.Contains(itm.i_market_hash_name));
                     var buyList = history.dataResult.FindAll(item =>
                         item.stage == "2"
                         && item.h_event == buyPlace
@@ -1138,8 +1148,8 @@ namespace MonoTM2
                             || item.market_hash_name == itm.i_market_hash_name));
 
                     //если в истории не нашли покупку, то выходим
-                    if (buyList.Count == 0 && 
-                        itemFromItemList.NeedBuy && 
+                    if (itemFromItemList == null || buyList.Count == 0  &&
+                        itemFromItemList.NeedBuy &&
                         itemFromItemList.SetItemType == TypeForSetItem.Auto) continue;
 
                     ////получаем прибыль
