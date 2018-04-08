@@ -695,7 +695,7 @@ namespace MonoTM2
             var answer = Web($"{host}/api/MassInfo/{sell}/{buy}/{history}/{info}/?key={key}", list: data);
             try
             {
-                var desirAns = JsonConvert.DeserializeObject<MassInfo>(answer);
+                var desirAns = JsonConvert.DeserializeObject<MassInfo>(answer.Replace("false","null"));
 
                 result.success = desirAns.success;
                 if (desirAns.success)
