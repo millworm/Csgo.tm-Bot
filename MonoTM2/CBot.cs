@@ -1141,14 +1141,14 @@ namespace MonoTM2
                 foreach (var itm in inv.dataResult)
                 {
                     var itemFromItemList = Items[host].Find(fnd => fnd.id == $"{itm.i_classid}_{itm.i_instanceid}" || fnd.name.Contains(itm.i_market_hash_name));
-                    var buyList = history.dataResult.FindAll(item =>
+                    var buyList = history.dataResult?.FindAll(item =>
                         item.stage == "2"
                         && item.h_event == buyPlace
                         && (item.classid == itm.i_classid && item.instanceid == itm.i_instanceid
                             || item.market_hash_name == itm.i_market_hash_name));
 
                     //если в истории не нашли покупку, то выходим
-                    if (itemFromItemList == null || buyList.Count == 0  &&
+                    if (itemFromItemList == null || buyList == null || buyList.Count == 0  &&
                         itemFromItemList.NeedBuy &&
                         itemFromItemList.SetItemType == TypeForSetItem.Auto) continue;
 
