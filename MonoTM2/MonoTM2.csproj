@@ -75,6 +75,7 @@
     <Compile Include="CBot.cs" />
     <Compile Include="Classes\Classes.cs" />
     <Compile Include="Classes\GetInv.cs" />
+    <Compile Include="Classes\InventoryItems.cs" />
     <Compile Include="Classes\TypeForSetItem.cs" />
     <Compile Include="Const\Host.cs" />
     <Compile Include="Classes\Hosts\Market.cs" />
@@ -102,9 +103,6 @@
     </None>
     <None Include="App.config" />
     <None Include="config.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="csgotmitems.dat">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="packages.config" />

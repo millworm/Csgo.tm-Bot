@@ -29,7 +29,7 @@ namespace MonoTM2
                 //string resp = Web($"{host}/api/Buy/" + item.id + "/" + Convert.ToInt32(item.price * 100) + "/" + item.hash + "/" + "?key={key}", timeout);
                 string resp = Web($"{host}/api/Buy/{item.id}/{Convert.ToInt32(item.price * 100)}/?key={key}", timeout);
                 aBuy it = JsonConvert.DeserializeObject<aBuy>(resp);
-                if (it.id != null && it.id.ToLower() != "false")
+                if (it.id?.ToLower() != "false")
                 {
                     if (it.result == "ok")
                     {
@@ -38,7 +38,7 @@ namespace MonoTM2
                 }
                 else
                 {
-                    if (it.error != null && it.error.ToLower() == "bad key")
+                    if (it.error?.ToLower() == "bad key")
                     {
                         ConsoleInputOutput.OutputMessage("Неверный ключ", MessageType.Error);
                         Console.ReadKey();
@@ -492,18 +492,13 @@ namespace MonoTM2
                 {
                     result.errorMessage = result.errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{inf.error}\nData:{answerStr}\n{_line}";
                 }
-
-                return result;
             }
             catch (Exception ex)
             {
-                return new ReturnResult<bool>
-                {
-                    success = false,
-                    errorMessage =
-                        $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}"
-                };
+                result.success = false;
+                result.errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}";
             }
+            return result;
         }
 
         /// <summary>
@@ -652,18 +647,13 @@ namespace MonoTM2
                 {
                     result.errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{desirAns.error}\nData:{answerStr}\n{_line}";
                 }
-
-                return result;
             }
             catch (Exception ex)
             {
-                return new ReturnResult<List<NotificationsItems>>
-                {
-                    success = false,
-                    errorMessage =
-                        $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}"
-                };
+                result.success = false;
+                result.errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}";
             }
+            return result;
         }
 
         /// <summary>
@@ -692,10 +682,10 @@ namespace MonoTM2
         {
             //https://market.csgo.com/api/MassInfo/[SELL]/[BUY]/[HISTORY]/[INFO]?key=[your_secret_key]
             var result = new ReturnResult<List<MassInfoResult>>();
-            var answer = Web($"{host}/api/MassInfo/{sell}/{buy}/{history}/{info}/?key={key}", list: data);
+            var answerStr = Web($"{host}/api/MassInfo/{sell}/{buy}/{history}/{info}/?key={key}", list: data);
             try
             {
-                var desirAns = JsonConvert.DeserializeObject<MassInfo>(answer.Replace("false","null"));
+                var desirAns = JsonConvert.DeserializeObject<MassInfo>(answerStr.Replace("false","null"));
 
                 result.success = desirAns.success;
                 if (desirAns.success)
@@ -704,18 +694,15 @@ namespace MonoTM2
                 }
                 else
                 {
-                    result.errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{desirAns.error}\nData:{answer}\n{_line}";
+                    result.errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{desirAns.error}\nData:{answerStr}\n{_line}";
                 }
-                return result;
             }
             catch (Exception ex)
             {
-                return new ReturnResult<List<MassInfoResult>>
-                {
-                    success = false,
-                    errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answer}\nTarget:{ex.StackTrace}\n{_line}"
-                };
+                result.success = false;
+                result.errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}";
             }
+            return result;
         }
 
         /// <summary>
@@ -740,17 +727,13 @@ namespace MonoTM2
                 {
                     result.errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{desirAns.error}\nData:{answerStr}\n{_line}";
                 }
-
-                return result;
             }
             catch (Exception ex)
             {
-                return new ReturnResult<List<GetInvDatum>>
-                {
-                    success = false,
-                    errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.StackTrace}\n{_line}"
-                };
+                result.success = false;
+                result.errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}";
             }
+            return result;
         }
 
         /// <summary>
@@ -777,17 +760,13 @@ namespace MonoTM2
                     result.success = false;
                     result.errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{desirAns.error}\nData:{answerStr}\n{_line}";
                 }
-
-                return result;
             }
             catch (Exception ex)
             {
-                return new ReturnResult<bool>
-                {
-                    success = false,
-                    errorMessage = $"\n{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}"
-                };
+                result.success = false;
+                result.errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}";
             }
+            return result;
         }
 
         /// <summary>
@@ -813,17 +792,13 @@ namespace MonoTM2
                 {
                     result.errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{desirAns.error}\nData:{answerStr}\n{_line}";
                 }
-
-                return result;
             }
             catch (Exception ex)
             {
-                return new ReturnResult<List<Offer>>
-                {
-                    success = false,
-                    errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}"
-                };
+                result.success = false;
+                result.errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}";
             }
+            return result;
         }
 
         /// <summary>
@@ -851,17 +826,45 @@ namespace MonoTM2
                 {
                     result.errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{desirAns.error}\nData:{answerStr}\n{_line}";
                 }
-                return result;
             }
             catch (Exception ex)
             {
-                return new ReturnResult<List<OperationHistory>>
-                {
-                    success = false,
-                    errorMessage =
-                        $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}"
-                };
+                result.success = false;
+                result.errorMessage = $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}";
+                
             }
+            return result;
+        }
+
+
+        public static ReturnResult<InventoryItems> InventoryItems(string host, string key)
+        {
+            //https://market.csgo.com/api/InventoryItems/?key=[your_secret_key]
+            var answerStr = Web($"{host}/api/InventoryItems/?key={key}");
+            var result = new ReturnResult<InventoryItems>();
+            try
+            {
+                var desirAns = JsonConvert.DeserializeObject<InventoryItems>(answerStr);
+
+                result.success = desirAns.Success;
+
+                if (desirAns.Success)
+                {
+                    result.dataResult = desirAns;
+                }
+                else
+                {
+                    result.errorMessage = desirAns.Error;
+                }
+                    
+            }
+            catch (Exception ex)
+            {
+                result.success = false;
+                result.errorMessage =
+                    $"{_line}\nMethod:{MethodBase.GetCurrentMethod().Name}\nMessage:{ex.Message}\nData:{answerStr}\nTarget:{ex.Data}\n{_line}";
+            }
+            return result;
         }
 
         public static string GetPlace(string host, string type)

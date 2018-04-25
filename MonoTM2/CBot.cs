@@ -159,6 +159,8 @@ namespace MonoTM2
                         case "itemout_new_go":
                             socketAnswerHost = Host.CSGO;
                             break;
+                        default:
+                            return;
                     }
                     switch (type.type)
                     {
@@ -281,6 +283,7 @@ namespace MonoTM2
                         case "newitems_pb":
                         case "newitems_cs":
                         case "newitems_go":
+                            if (!cfg.MarketsSettings[socketAnswerHost].Enable) return;
                             var answerNewitems = ee.Data
                                          .Replace("\\\"", "\"")
                                          .Replace(":\"{", ":{")
@@ -329,7 +332,7 @@ namespace MonoTM2
                 }
                 catch (Exception e)
                 {
-#if !DEBUG
+#if DEBUG
                     System.Diagnostics.Debug.WriteLine(e.Message + Environment.NewLine + ee.Data);
                     using (var sw = new System.IO.StreamWriter("sockets.txt", true))
                         sw.WriteLine($"{new string('-', 50)}\n{ee.Data}\n{new string('-', 50)}");
@@ -355,7 +358,7 @@ namespace MonoTM2
         /// </summary>
         private void SocketsAuth()
         {
-            string wskey = Functions.GetWS(Host.CSGO, cfg.key);
+            string wskey = Functions.GetWS(Host.PUBG, cfg.key);
             WS t = JsonConvert.DeserializeObject<WS>(wskey);
 
             client.Connect();
@@ -397,6 +400,7 @@ namespace MonoTM2
                     //await Task.Delay(0);
                 }
                 catch { }
+                Thread.Sleep(1);
             }
 
         }
@@ -414,6 +418,7 @@ namespace MonoTM2
                 {
                     WriteMessage($"Скидка на {mark.Key} - {mark.Value.Discount}%", MessageType.Info);
                     MassUpdate(mark.Key);
+                    CheckNotifications(mark.Key);
                 }
             }
 
@@ -607,7 +612,8 @@ namespace MonoTM2
         {
             WriteMessage($"[{host}]Таймер", MessageType.Timer);
             //выставитьToolStripMenuItem_Click(sender, e);
-            UpdatePriceDelegateAction.BeginInvoke(host, null, null);
+            
+            UpdatePriceDelegateAction.BeginInvoke(host, res => { CorrectOrdersAndNotifications(host); } , null);
 
             if (autoConfirmTrades)
             {
@@ -620,6 +626,7 @@ namespace MonoTM2
                 //AcceptMobileOrdersAction.Invoke();
                 SetItems(host, null);
             }
+            Functions.UpdateInvent(host, cfg.key);
         }
 
         /// <summary>
@@ -937,20 +944,23 @@ namespace MonoTM2
             {
                 int i = 0;
                 var ans = Functions.GetNotifications(host, cfg.key);
-                if (ans.success)
+
+                if (!ans.success) return;
+
+                foreach (var itm in ans.dataResult)
                 {
-                    foreach (var itm in ans.dataResult)
+                    var haveInItems = Items[host].Find(item => item.id == itm.i_classid + "_" + itm.i_instanceid);
+                    if (haveInItems == null)
                     {
-                        var haveInItems = Items[host].Find(item => item.id == itm.i_classid + "_" + itm.i_instanceid);
-                        if (haveInItems == null)
-                        {
-                            AddItem($"{host}/{itm.i_classid}-{itm.i_instanceid}", Convert.ToInt32(itm.n_val) / 100, PriceCheck.Notification);
-                            i++;
-                        }
+                        AddItem($"{host}/{itm.i_classid}-{itm.i_instanceid}", Convert.ToInt32(itm.n_val) / 100, PriceCheck.Notification);
+                        i++;
                     }
-                    if (i != 0)
-                        WriteMessage($"Добавлено {i} предметов", MessageType.Info);
                 }
+
+                if (i == 0) return;
+
+                Save(TypeSave.Items);
+                WriteMessage($"Добавлено {i} предметов", MessageType.Info);
             }
             catch
             {
@@ -1071,8 +1081,6 @@ namespace MonoTM2
                         WriteMessage(ans.errorMessage, MessageType.Error);
                 }
             }
-
-            CorrectOrdersAndNotifications(host);
         }
 
         private void UpdateItemPrice(string host, Itm itm, int? minPrice = null)
@@ -1124,7 +1132,7 @@ namespace MonoTM2
 
             var setting = cfg.MarketsSettings[host];
 
-            if (!setting.Enable) return;
+            if (!setting.Enable || !setting.AutoSetItems) return;
 
             //Получаем список вещей в инвентаре
             var inv = Functions.GetInv(host, cfg.key);

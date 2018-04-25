@@ -77,7 +77,7 @@ namespace MonoTM2
                     _incomingTradeDelegate.BeginInvoke(host,res => OnIncomingTrade?.Invoke(host, null), null);
                     /*if (IIncomingTradeResult == null || IIncomingTradeResult.IsCompleted)
                     {
-                        IIncomingTradeResult = _incomingTradeDelegate.BeginInvoke(null, null);
+                        IIncomingTradeResult = _incomingTradeDelegate.BeginInvoke(host, null, null);
                         _incomingTradeDelegate.EndInvoke(IIncomingTradeResult);
                     }*/
                     break;
@@ -85,7 +85,7 @@ namespace MonoTM2
                     _outgoingTradeDelegate.BeginInvoke(host,res => OnOutgoingTrade?.Invoke(host, null), null);
                     /*if (IOutgoingTradeResult == null || IOutgoingTradeResult.IsCompleted)
                     {
-                        IOutgoingTradeResult = _outgoingTradeDelegate.BeginInvoke(EventStarter, null);
+                        IOutgoingTradeResult = _outgoingTradeDelegate.BeginInvoke(host, res => OnOutgoingTrade?.Invoke(host, null), null);
                         _outgoingTradeDelegate.EndInvoke(IOutgoingTradeResult);
                     }*/
                     break;
@@ -103,7 +103,7 @@ namespace MonoTM2
            try
             {
                 //проверяем наличие входящих трейдов от маркета
-               /* var tradeList = Functions.MarketTrades(host, _config.key);
+                var tradeList = Functions.MarketTrades(host, _config.key);
 
                 if (tradeList?.success == true && tradeList.trades.Count != 0)
                 {
@@ -111,10 +111,11 @@ namespace MonoTM2
                         !_offers.ContainsKey(Convert.ToUInt32(itm.trade_id)) && itm.dir == "out");
                     foreach (var trade in unCheckedTrades)
                     {
-                        AcceptTrade(Convert.ToUInt32(trade.trade_id), Convert.ToUInt32(trade.bot_id), TypeTrade.OUT);
+                        if(AcceptTrade(Convert.ToUInt32(trade.trade_id), Convert.ToUInt32(trade.bot_id), TypeTrade.OUT))
+                            Functions.UpdateInvent(host, _config.key);
                         //TODO дописать проверку на наличие обменов
                     }
-                }*/
+                }
 
                 //Запрашиваем бота
                 ConsoleInputOutput.OutputMessage("Запрашиваем бота");
@@ -124,12 +125,13 @@ namespace MonoTM2
                 {
                     //Запрашиваем данные оффера
                     ConsoleInputOutput.OutputMessage("Запрашиваем оффер");
+                    Thread.Sleep(5000);
                     var offer = Functions.GetOffer(bot_id, host, _config.key);
 
                     if (offer?.success == true)
                     {
-                        AcceptTrade(Convert.ToUInt32(offer.trade), Convert.ToUInt32(bot_id), TypeTrade.OUT);
-                        Functions.UpdateInvent(host, _config.key);
+                        if(AcceptTrade(Convert.ToUInt32(offer.trade), Convert.ToUInt32(bot_id), TypeTrade.OUT))
+                            Functions.UpdateInvent(host, _config.key);
                     }
                 }
 
@@ -151,18 +153,18 @@ namespace MonoTM2
                 if (accountFileExist)
                 {
                     //проверяем наличие входящих трейдов от маркета
-                 /*   var tradeList = Functions.MarketTrades(host, _config.key);
+                    var tradeList = Functions.MarketTrades(host, _config.key);
 
                     if (tradeList?.success == true && tradeList.trades.Count != 0)
                     {
                         var unCheckedTrades = tradeList.trades.FindAll(itm =>
-                            !_offers.ContainsKey(Convert.ToUInt32(itm.trade_id)) && itm.dir == "out");
+                            !_offers.ContainsKey(Convert.ToUInt32(itm.trade_id)) && itm.dir == "in");
                         foreach (var trade in unCheckedTrades)
                         {
                             AcceptTrade(Convert.ToUInt32(trade.trade_id), Convert.ToUInt32(trade.bot_id), TypeTrade.IN);
                             AcceptConfirmations();
                         }
-                    }*/
+                    }
                     //Получаем оффер
                     ConsoleInputOutput.OutputMessage("Получаем оффер");
                     var offer = Functions.GetOffer("1", host, _config.key, "in");
@@ -176,10 +178,10 @@ namespace MonoTM2
                         ConsoleInputOutput.OutputMessage("Подтверждаем");
 
                         var res = AcceptTrade(tradeId, botId, TypeTrade.IN);
-
+                        if(res)
+                            Functions.UpdateInvent(host, _config.key);
                         //Подтверждаем в мобильной версии
                         AcceptConfirmations();
-                        Functions.UpdateInvent(host, _config.key);
 
                     }
                 }
@@ -203,14 +205,14 @@ namespace MonoTM2
         /// <returns>True - если обмен принят, иначе False</returns>
         bool AcceptTrade(uint tradeId, uint botId, TypeTrade type)
         {
-            if (_offers.ContainsKey(tradeId)) return false;
+            if (_offers.ContainsKey(tradeId) || tradeId==0) return false;
             _offers.Add(tradeId, type);
             try
             {
-                marketHandler.EligibilityCheck(_account.SteamId, _account.AuthContainer);
+                //marketHandler.EligibilityCheck(_account.SteamId, _account.AuthContainer);
 
                 var answer = offerHandler.AcceptTradeOffer(tradeId, botId, _account.AuthContainer, "1");
-                return answer?.TradeId != null || answer.MobileConfirmation || answer.EmailConfirmation;
+                return answer != null && (answer.TradeId != null || answer.MobileConfirmation || answer.EmailConfirmation);
             }
 
             catch (NullReferenceException)
@@ -316,6 +318,22 @@ namespace MonoTM2
             catch
             {
 
+            }
+        }
+
+        void ExistingTrade(string host)
+        {
+            var tradeList = Functions.MarketTrades(host, _config.key);
+
+            if (tradeList?.success == true && tradeList.trades.Count != 0)
+            {
+                var unCheckedTrades = tradeList.trades.FindAll(itm =>
+                    !_offers.ContainsKey(Convert.ToUInt32(itm.trade_id)) && itm.dir == "out");
+                foreach (var trade in unCheckedTrades)
+                {
+                    AcceptTrade(Convert.ToUInt32(trade.trade_id), Convert.ToUInt32(trade.bot_id), TypeTrade.IN);
+                    AcceptConfirmations();
+                }
             }
         }
     }

@@ -17,8 +17,12 @@ namespace MonoTM2.Classes.Hosts
         public double UpdatePriceTimerTime { get; set; } = 12;
 
         /// <summary>
+        /// Автоматическое выставление вещей
+        /// </summary>
+        public bool AutoSetItems { get; set; } = false;
+        /// <summary>
         /// Массовое обновление цен инвентаря
         /// </summary>
-      //  public bool MassUpdate { get; set; } = true;
+        //  public bool MassUpdate { get; set; } = true;
     }
 }
