@@ -293,7 +293,7 @@ namespace MonoTM2
                             WSItm t = JsonConvert.DeserializeObject<WSItm>(answerNewitems);
 
                             id = t.data.i_classid + "_" + t.data.i_instanceid;
-                            var ItemInList = Items[Host.CSGO].Find(item => item.id == id && item.NeedBuy); //&& item.price >= (t.data.ui_price));
+                            var ItemInList = Items[socketAnswerHost].Find(item => item.id == id && item.NeedBuy); //&& item.price >= (t.data.ui_price));
 
                             if (ItemInList != null && (ItemInList.price >= (t.data.ui_price)))
                             {
@@ -335,7 +335,7 @@ namespace MonoTM2
 #if DEBUG
                     System.Diagnostics.Debug.WriteLine(e.Message + Environment.NewLine + ee.Data);
                     using (var sw = new System.IO.StreamWriter("sockets.txt", true))
-                        sw.WriteLine($"{new string('-', 50)}\n{ee.Data}\n{new string('-', 50)}");
+                        sw.WriteLine($"{new string('-', 50)}\n{DateTime.Now}\n{ee.Data}\n{new string('-', 50)}");
 
                    /* if (type.type != "newitems_go" && type.type != "webnotify")
                         Console.WriteLine("Error " + type.type + " " + e.Message + Environment.NewLine + Environment.NewLine  + Environment.NewLine + Environment.NewLine + ee.Data + Environment.NewLine + Environment.NewLine);*/
@@ -365,7 +365,13 @@ namespace MonoTM2
             if (t.error == null && t.wsAuth != null)
             {
                 client.Send(t.wsAuth);
-                client.Send("newitems_go");
+
+                if(cfg.MarketsSettings[Host.CSGO].Enable)
+                    client.Send("newitems_go");
+                if (cfg.MarketsSettings[Host.DOTA2].Enable)
+                    client.Send("newitems_cs");
+                if (cfg.MarketsSettings[Host.PUBG].Enable)
+                    client.Send("newitems_pb");
             }
             else
                 WriteMessage(t.error, MessageType.Error);
@@ -626,7 +632,6 @@ namespace MonoTM2
                 //AcceptMobileOrdersAction.Invoke();
                 SetItems(host, null);
             }
-            Functions.UpdateInvent(host, cfg.key);
         }
 
         /// <summary>

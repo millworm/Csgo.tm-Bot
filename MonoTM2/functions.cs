@@ -265,6 +265,7 @@ namespace MonoTM2
                     myHttpWebRequest.Method = "POST";
                     var data = Encoding.UTF8.GetBytes("list=" + list);
                     myHttpWebRequest.ContentLength = data.Length;
+                    myHttpWebRequest.KeepAlive = false;
                     myHttpWebRequest.ContentType = "application/x-www-form-urlencoded";
 
                     using (var stream = myHttpWebRequest.GetRequestStream())
@@ -286,9 +287,7 @@ namespace MonoTM2
                     case WebExceptionStatus.Timeout:
                         break;
                     default:
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine(e.Message);
-                        Console.ResetColor();
+                        ConsoleInputOutput.OutputMessage($"{e.Message}\n{server.Split('=')[0]}", MessageType.Error);
                         break;
                 }
                 return "{\"success\":\"False\"}";
@@ -682,7 +681,7 @@ namespace MonoTM2
         {
             //https://market.csgo.com/api/MassInfo/[SELL]/[BUY]/[HISTORY]/[INFO]?key=[your_secret_key]
             var result = new ReturnResult<List<MassInfoResult>>();
-            var answerStr = Web($"{host}/api/MassInfo/{sell}/{buy}/{history}/{info}/?key={key}", list: data);
+            var answerStr = Web($"{host}/api/MassInfo/{sell}/{buy}/{history}/{info}/?key={key}",timeout: 2000, list: data);
             try
             {
                 var desirAns = JsonConvert.DeserializeObject<MassInfo>(answerStr.Replace("false","null"));
